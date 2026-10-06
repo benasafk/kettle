@@ -4,6 +4,8 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 import { CONTRACT_VERSION, toolContracts } from '../../packages/contracts/index.ts';
 
+import { registerProjectReviewResource, PROJECT_REVIEW_URI } from './project-review-resource.ts';
+
 import type { createOperations, IdentityVerifier } from '../../packages/application/operations.ts';
 import { bearer, challenge, type AuthConfig } from '../../packages/auth/index.ts';
 
@@ -30,22 +32,43 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
     content: [{ type: 'text', text: auth ? 'Kettle is reachable. Account tools require authorization.' : 'Kettle foundation is reachable. Account tools are not enabled yet.' }],
     structuredContent: { status: 'ok', contract_version: CONTRACT_VERSION },
   }));
+  // One definition drives both registration and the overridden tools/list.
+  // The render tool is a transport alias, never a new application operation.
+  const productTools = [
+    ...Object.keys(toolContracts).map((name) => ({
+      name, operation: name as keyof typeof toolContracts,
+      description: name === 'save_project' ? 'Save a complete project brief in your Kettle account with version and request-ID checks.'
+        : name === 'get_project' ? 'Reopen a saved project in your Kettle account.' : 'Read your Kettle account status.',
+      ui: undefined as { resourceUri: string } | undefined,
+    })),
+    {
+      name: 'show_project_brief', operation: 'get_project' as const,
+      description: 'Show the saved brief for an existing Kettle project as an inline review card. Use its explicit project ID. After saving corrections, call this tool to show the saved version. This tool does not generate content or save changes.',
+      ui: { resourceUri: PROJECT_REVIEW_URI },
+    },
+  ].map((tool) => {
+    const contract = toolContracts[tool.operation];
+    const securitySchemes = [{ type: 'oauth2', scopes: [contract.scope] }];
+    return { ...tool, contract, securitySchemes,
+      annotations: { readOnlyHint: contract.readOnly, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes, ...(tool.ui ? { ui: tool.ui } : {}) },
+    };
+  });
   if (auth) {
-    for (const name of Object.keys(toolContracts) as (keyof typeof toolContracts)[]) {
-      const contract = toolContracts[name];
-      server.registerTool(name, {
-        description: name === 'save_project' ? 'Save a complete project brief in your Kettle account with version and request-ID checks.'
-          : name === 'get_project' ? 'Reopen a saved project in your Kettle account.' : 'Read your Kettle account status.',
+    registerProjectReviewResource(server);
+    for (const tool of productTools) {
+      const { contract } = tool;
+      server.registerTool(tool.name, {
+        description: tool.description,
         inputSchema: contract.input,
         // SDK 1.32 validates successful results as object schemas and skips
         // validation for isError results. A discriminated union crashes its
         // object normalizer. The application still validates the full v1 union;
         // tools/list below publishes that unchanged union for clients.
         outputSchema: contract.output.options[0],
-        annotations: { readOnlyHint: contract.readOnly, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-        _meta: { securitySchemes: [{ type: 'oauth2', scopes: [contract.scope] }] },
+        annotations: tool.annotations, _meta: tool._meta,
       }, async (input: unknown) => {
-        const result = await auth.operations.execute(name, token, input);
+        const result = await auth.operations.execute(tool.operation, token, input);
         const needsAuth = !result.ok && (result.error.code === 'UNAUTHENTICATED'
           || (result.error.code === 'FORBIDDEN' && token && !(await auth.verifier.verify(token))?.scopes.includes(contract.scope)));
         return {
@@ -68,16 +91,11 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
     securitySchemes: [{ type: 'noauth' }], _meta: { securitySchemes: [{ type: 'noauth' }] },
   };
   const descriptors: AuthTool[] = [diagnostic];
-  if (auth) for (const name of Object.keys(toolContracts) as (keyof typeof toolContracts)[]) {
-    const contract = toolContracts[name];
-    const securitySchemes = [{ type: 'oauth2', scopes: [contract.scope] }];
-    descriptors.push({ name,
-      description: name === 'save_project' ? 'Save a complete project brief in your Kettle account with version and request-ID checks.'
-        : name === 'get_project' ? 'Reopen a saved project in your Kettle account.' : 'Read your Kettle account status.',
-      inputSchema: ToolSchema.shape.inputSchema.parse({ ...z.toJSONSchema(contract.input), type: 'object' }),
-      outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(contract.output), type: 'object' }),
-      annotations: { readOnlyHint: contract.readOnly, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      securitySchemes, _meta: { securitySchemes },
+  if (auth) for (const tool of productTools) {
+    descriptors.push({ name: tool.name, description: tool.description,
+      inputSchema: ToolSchema.shape.inputSchema.parse({ ...z.toJSONSchema(tool.contract.input), type: 'object' }),
+      outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(tool.contract.output), type: 'object' }),
+      annotations: tool.annotations, securitySchemes: tool.securitySchemes, _meta: tool._meta,
     });
   }
   server.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: descriptors }));
