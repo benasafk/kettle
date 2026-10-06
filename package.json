@@ -23,9 +23,17 @@
     "eval:generation": "tsx evals/run.ts",
     "db:migrate": "node scripts/database.mjs migrate",
     "db:test": "tsx scripts/supabase-local-smoke.ts",
-    "build:development": "wrangler deploy --env development --dry-run --outdir dist/development"
+    "build:development": "wrangler deploy --env development --dry-run --outdir dist/development",
+    "build:panel": "node scripts/build-panel.mjs",
+    "predev": "npm run build:panel",
+    "prebuild": "npm run build:panel",
+    "prebuild:development": "npm run build:panel",
+    "pretypecheck": "npm run build:panel",
+    "pretest": "npm run build:panel",
+    "presmoke": "npm run build:panel"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.32.1",
     "jose": "6.2.12",
     "zod": "4.6.5"
@@ -33,6 +41,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
     "@types/node": "^22.0.0",
+    "esbuild": "0.28.2",
     "supabase": "2.119.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
