@@ -96,12 +96,22 @@ test('signed website and separate MCP credentials share SQL ownership across rec
   const absentRead = GetProjectOutput.parse((await content(await mcp(otherToken, 'get_project', { project_id: crypto.randomUUID() }))).structuredContent);
   assert.ok(!deniedRead.ok && deniedRead.error.code === 'NOT_FOUND');
   assert.deepEqual(deniedRead, absentRead);
-  const deniedWrite = SaveProjectOutput.parse((await content(await mcp(otherToken, 'save_project', { ...update, request_id: crypto.randomUUID(), expected_version: 2 }))).structuredContent);
+  const deniedRequestId = crypto.randomUUID();
+  const beforeDeniedWrite = await db.query('select * from public.projects where id=$1', [projectId]);
+  const deniedWrite = SaveProjectOutput.parse((await content(await mcp(otherToken, 'save_project', { ...update, request_id: deniedRequestId, expected_version: 2 }))).structuredContent);
   assert.ok(!deniedWrite.ok && deniedWrite.error.code === 'NOT_FOUND');
+  assert.deepEqual(await db.query('select * from public.projects where id=$1', [projectId]), beforeDeniedWrite);
+  const rejectedReceipts = await db.query('select * from public.write_receipts where account_id=$1 and request_id=$2', [otherAccount.data.account.id, deniedRequestId]);
+  assert.equal(rejectedReceipts.rows.length, 0, 'cross-account denial creates no successful receipt');
 
   const callsBeforeDenial = storageCalls;
   const scopeDenied = await content(await mcp(await token('fictional-a', 'separate-chatgpt-client', { scope: 'account:read' }), 'get_project', { project_id: projectId }));
   assert.match(scopeDenied._meta!['mcp/www_authenticate']![0]!, /insufficient_scope/);
+  const limitedWriteId = crypto.randomUUID();
+  const limitedWrite = await content(await mcp(await token('fictional-a', 'separate-chatgpt-client', { scope: 'account:read' }), 'save_project', { ...update, request_id: limitedWriteId, expected_version: 2 }));
+  const limitedResult = SaveProjectOutput.parse(limitedWrite.structuredContent);
+  assert.ok(!limitedResult.ok && limitedResult.error.code === 'FORBIDDEN');
+  assert.match(limitedWrite._meta!['mcp/www_authenticate']![0]!, /insufficient_scope/);
   assert.equal((await mcp(await token('fictional-a', 'separate-chatgpt-client', { exp: issued + 1 }), 'get_project', { project_id: projectId })).status, 401);
   assert.equal(storageCalls, callsBeforeDenial);
 
@@ -112,6 +122,21 @@ test('signed website and separate MCP credentials share SQL ownership across rec
   assert.ok(afterCutoff.ok);
   await db.query('update public.account_identities set blocked=true where account_id=$1', [websiteAccount.data.account.id]);
   assert.equal((await mcp(reconnected, 'get_project', { project_id: projectId })).status, 401);
+  // A freshly issued token cannot evade a block. Unblocking retains the cutoff:
+  // old credentials stay rejected and a new credential recovers the same account.
+  const newer = await token('fictional-a', 'separate-chatgpt-client', { iat: issued + 2 });
+  assert.equal((await mcp(newer, 'get_project', { project_id: projectId })).status, 401);
+  const unaffected = GetAccountStateOutput.parse((await content(await mcp(otherToken, 'get_account_state', {}))).structuredContent);
+  assert.ok(unaffected.ok);
+  assert.equal(unaffected.data.account.id, otherAccount.data.account.id);
+  await db.query('update public.account_identities set blocked=false where account_id=$1', [websiteAccount.data.account.id]);
+  assert.equal((await mcp(mcpToken, 'get_project', { project_id: projectId })).status, 401, 'unblocking must not undo the cutoff');
+  const recoveredAccount = GetAccountStateOutput.parse((await content(await mcp(newer, 'get_account_state', {}))).structuredContent);
+  assert.ok(recoveredAccount.ok);
+  assert.equal(recoveredAccount.data.account.id, websiteAccount.data.account.id);
+  const recoveredProject = GetProjectOutput.parse((await content(await mcp(newer, 'get_project', { project_id: projectId }))).structuredContent);
+  assert.ok(recoveredProject.ok);
+  assert.deepEqual(recoveredProject.data.project, updated.data.project);
   const count = await db.query<{ count: number }>('select count(*)::int as count from public.account_identities');
   assert.equal(count.rows[0]!.count, 2, 'refresh/reconnect must not provision extra identities');
   const history = await db.query<{ count: number }>('select count(*)::int as count from public.brief_versions where project_id=$1', [projectId]);

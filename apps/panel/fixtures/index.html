@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kettle project review · fictional fixture preview</title>
+<style>
+:root { color-scheme:light dark; font-family:system-ui,sans-serif; background:light-dark(#f1f4f5,#121318); color:light-dark(#111,#eee); }
+body { margin:0; padding:24px; } header { max-width:720px; margin:0 auto 28px; } h1 { font-size:18px; } header p { font-size:13px; } .controls { display:flex; flex-wrap:wrap; gap:12px; } label { display:grid; gap:4px; font-size:13px; } select,button { font:inherit; min-height:36px; } #preview { max-width:100%; margin:auto; } @media(max-width:400px) { body { padding:12px 0; } header { padding:0 12px; } }
+</style>
+<header><h1>Project review · fixture preview</h1><p>Fictional data. No bridge, credentials, saved changes or provider calls.</p><div class="controls">
+<label>Scenario<select id="scenario"><option value="ready">Saved brief</option><option value="empty">Empty lists</option><option value="long">Long content</option><option value="hostile">Hostile text</option><option value="loading">Loading</option><option value="refreshing">Refreshing</option><option value="warning">Refresh failed</option><option value="error">Unavailable</option><option value="auth">Reconnect</option></select></label>
+<label>Theme<select id="theme"><option value="light">Light</option><option value="dark">Dark</option><option value="light dark">System</option></select></label>
+<label>Card width<select id="width"><option>640</option><option>320</option><option>420</option></select></label>
+<button id="dispose">Dispose component</button></div><p>Refresh callbacks: <output id="count">0</output></p></header>
+<main id="preview"></main><script type="module" src="/apps/panel/fixtures/preview.ts"></script></html>
