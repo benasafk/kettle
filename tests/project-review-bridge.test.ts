@@ -118,7 +118,7 @@ test('UNAVAILABLE preserves previously loaded snapshot with explicit retry', asy
   const work = f.controller.refresh();
   f.calls[0]!.resolve({ structuredContent: failure('UNAVAILABLE'), isError: true }); await work;
   assert.equal(version(f.last()), 2);
-  assert.match(readyState(f.last()).warning ?? '', /Previously loaded/);
+  assert.match(readyState(f.last()).warning ?? '', /Refresh failed/);
   const retry = f.controller.refresh(); f.calls[1]!.resolve(result(3)); await retry;
   assert.equal(version(f.last()), 3);
 });
@@ -128,7 +128,7 @@ test('timeout aborts the pending call, allows retry and ignores its late complet
   await f.controller.refresh();
   assert.equal(f.calls[0]!.signal.aborted, true);
   assert.equal(version(f.last()), 1);
-  assert.match(readyState(f.last()).warning ?? '', /Previously loaded/);
+  assert.match(readyState(f.last()).warning ?? '', /Refresh failed/);
   const retry = f.controller.refresh(); f.calls[1]!.resolve(result(3)); await retry;
   f.calls[0]!.resolve(result(2)); await delay(0);
   assert.equal(version(f.last()), 3);
@@ -174,4 +174,12 @@ test('dispose aborts pending requests and prevents subsequent renders or reads',
   f.calls[0]!.resolve(result(2)); await work;
   f.controller.receiveResult(result(3)); f.controller.connected(true); await f.controller.refresh();
   assert.equal(f.states.length, count); assert.equal(f.calls.length, 1);
+});
+
+
+test('unclassified host rejection clears private data instead of assuming a transient failure', async (t) => {
+  const f = fixture(); t.after(() => f.controller.dispose()); f.launch();
+  const work = f.controller.refresh(); f.calls[0]!.reject(new Error('Host rejected tool call')); await work;
+  assert.equal(f.last().kind, 'error');
+  await f.controller.refresh(); assert.equal(f.calls.length, 1);
 });

@@ -1,10 +1,11 @@
 import { App, PostMessageTransport, applyDocumentTheme, type McpUiHostContext } from '@modelcontextprotocol/ext-apps';
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { GetProjectInput, GetProjectOutput, type Project } from '../../packages/contracts/index.ts';
 import { mountProjectReview, type ProjectReviewState } from './project-review.ts';
 
 const WAIT_MS = 10_000;
 const REOPEN = 'Ask Kettle to reopen this project brief in chat.';
-const PREVIOUS = 'Previously loaded snapshot. Refresh failed; try Refresh brief again.';
+const PREVIOUS = 'Refresh failed; try Refresh brief again.';
 type ReadProject = (projectId: string, signal: AbortSignal) => Promise<unknown>;
 
 /** Presentation state only. Authentication and ownership remain on the server. */
@@ -81,7 +82,7 @@ export function createProjectReviewController(
       return;
     }
     if (next.current_version < version) {
-      if (project) ready('Previously loaded snapshot. An older response was ignored; refresh again or reopen in chat.');
+      if (project) ready('An older response was ignored; refresh again or reopen in chat.');
       else error(`An older project brief was returned. ${REOPEN}`);
       return;
     }
@@ -99,6 +100,7 @@ export function createProjectReviewController(
     pending = abort;
     ready();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
     try {
       // The deadline also protects callers whose transport never settles. The
       // abort reaches SDK request cleanup; late completions cannot change state.
@@ -106,16 +108,17 @@ export function createProjectReviewController(
         readProject(expectedId, abort.signal),
         new Promise<never>((_resolve, reject) => {
           abort.signal.addEventListener('abort', () => reject(new Error('Cancelled')), { once: true });
-          timer = setTimeout(() => { abort.abort(); reject(new Error('Timeout')); }, timeoutMs);
+          timer = setTimeout(() => { timedOut = true; abort.abort(); reject(new Error('Timeout')); }, timeoutMs);
         }),
       ]);
       if (disposed || current !== generation) return;
       pending = undefined;
       applyResult(result, true);
-    } catch {
+    } catch (caught) {
       if (disposed || current !== generation) return;
       pending = undefined;
-      ready(PREVIOUS);
+      if (timedOut || (caught instanceof McpError && caught.code === ErrorCode.RequestTimeout)) ready(PREVIOUS);
+      else error(`The host could not refresh this brief. Reconnect Kettle if needed. ${REOPEN}`);
     } finally {
       clearTimeout(timer);
     }
@@ -168,7 +171,7 @@ export function createProjectReviewController(
 /** No credentials, direct HTTP requests, persistence, polling or chat writes. */
 export function mountProjectReviewBridge(root: HTMLElement) {
   const app = new App({ name: 'kettle-project-review', version: '1.0.0' },
-    { availableDisplayModes: ['inline'] }, { autoResize: true });
+    { availableDisplayModes: ['inline'] }, { autoResize: false });
   const view = mountProjectReview(root, { onRefresh: () => { void controller.refresh(); } });
   const controller = createProjectReviewController((state) => view.render(state),
     (projectId, signal) => app.callServerTool({ name: 'get_project', arguments: { project_id: projectId } },
@@ -179,11 +182,40 @@ export function mountProjectReviewBridge(root: HTMLElement) {
     // No host font CSS is injected: this card uses system fonts and no assets.
   };
   let disposed = false;
+  let bridgeReady = false;
+  let resizeObserver: ResizeObserver | undefined;
+  let resizeFrame: number | undefined;
+  let lastSize = '';
+  function stopResize() {
+    resizeObserver?.disconnect();
+    if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+    resizeFrame = undefined;
+  }
+  function scheduleSize() {
+    if (disposed || !bridgeReady || resizeFrame !== undefined) return;
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = undefined;
+      if (disposed || !bridgeReady) return;
+      const element = document.documentElement;
+      const previousHeight = element.style.height;
+      element.style.height = 'max-content';
+      const height = Math.ceil(element.getBoundingClientRect().height);
+      element.style.height = previousHeight;
+      const width = Math.ceil(window.innerWidth);
+      const size = `${width}:${height}`;
+      if (size === lastSize) return;
+      lastSize = size;
+      // ext-apps 1.7.5's autoResize does not retain its cleanup callback or
+      // cancel queued animation frames on close. Own this lifecycle explicitly.
+      void app.sendSizeChanged({ width, height }).catch(() => {});
+    });
+  }
   const handshake = new AbortController();
   function dispose() {
     if (disposed) return;
     disposed = true;
     handshake.abort();
+    stopResize();
     controller.dispose();
     view.dispose();
     window.removeEventListener('pagehide', dispose);
@@ -197,7 +229,7 @@ export function mountProjectReviewBridge(root: HTMLElement) {
   app.ontoolresult = (params) => controller.receiveResult(params);
   app.ontoolcancelled = () => controller.connectionFailed();
   app.onhostcontextchanged = applyContext;
-  app.onclose = () => { if (!disposed) controller.connectionFailed(); };
+  app.onclose = () => { bridgeReady = false; stopResize(); if (!disposed) controller.connectionFailed(); };
   // Acknowledge teardown before closing the transport, so the host receives its response.
   app.onteardown = async () => { setTimeout(dispose, 0); return {}; };
   window.addEventListener('pagehide', dispose, { once: true });
@@ -207,6 +239,11 @@ export function mountProjectReviewBridge(root: HTMLElement) {
     void app.connect(new PostMessageTransport(window.parent, window.parent),
       { signal: handshake.signal, timeout: WAIT_MS, maxTotalTimeout: WAIT_MS }).then(() => {
       if (disposed) return;
+      bridgeReady = true;
+      resizeObserver = new ResizeObserver(scheduleSize);
+      resizeObserver.observe(document.documentElement);
+      resizeObserver.observe(document.body);
+      scheduleSize();
       applyContext(app.getHostContext());
       controller.connected(!!app.getHostCapabilities()?.serverTools);
     }).catch(() => { if (!disposed) controller.connectionFailed(); });

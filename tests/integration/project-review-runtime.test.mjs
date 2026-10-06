@@ -57,15 +57,18 @@ test('workerd serves the real bundle; browser exercises the MCP Apps parent brid
     await page.setContent('<!doctype html><title>MCP Apps local fixture host</title>');
     await page.evaluate(({ html, initial }) => {
       window.calls = [];
+      window.supportsTools = true;
+      window.initializeEnabled = true;
       window.notifications = [];
       window.send = message => window.card.contentWindow.postMessage({ jsonrpc: '2.0', ...message }, '*');
       window.addEventListener('message', event => {
         if (event.source !== window.card.contentWindow) return;
         const message = event.data;
         if (message.method === 'ui/initialize') {
+          if (!window.initializeEnabled) return;
           window.initialization = message.params;
           window.send({ id: message.id, result: { protocolVersion: '2026-01-26',
-            hostInfo: { name: 'local-fixture', version: '1' }, hostCapabilities: { serverTools: {} },
+            hostInfo: { name: 'local-fixture', version: '1' }, hostCapabilities: window.supportsTools ? { serverTools: {} } : {},
             hostContext: { theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline'] },
           } });
         } else if (message.method === 'ui/notifications/initialized') {
@@ -89,7 +92,7 @@ test('workerd serves the real bundle; browser exercises the MCP Apps parent brid
     assert.equal(await card.locator('script').count(), 1, 'only the resource script exists');
     await card.getByRole('button', { name: 'Refresh brief', exact: true }).click();
     await page.waitForFunction(() => window.calls.length === 1);
-    assert.deepEqual(await page.evaluate(() => window.calls[0].params), { name: 'get_project', arguments: { project_id: projectId } });
+    assert.deepEqual(await page.evaluate(() => ({ name: window.calls[0].params.name, arguments: window.calls[0].params.arguments })), { name: 'get_project', arguments: { project_id: projectId } });
     await card.getByRole('button', { name: 'Refreshing brief…', exact: true }).click({ force: true });
     assert.equal(await page.evaluate(() => window.calls.length), 1);
     await page.evaluate(result => window.send({ id: window.calls[0].id, result }), toolResult(2));
@@ -133,6 +136,13 @@ test('workerd serves the real bundle; browser exercises the MCP Apps parent brid
     await page.evaluate(() => window.send({ id: 'teardown', method: 'ui/resource-teardown', params: {} }));
     await page.waitForFunction(() => window.notifications.some(m => m.id === 'teardown' && m.result));
     await page.waitForFunction(() => !window.card.contentDocument.querySelector('.kr-card'));
+    // Reopen the real resource under an incapable host and then a silent host.
+    await page.evaluate(html => { window.supportsTools = false; window.card.srcdoc = html; }, resource.text);
+    await card.getByText('This host cannot refresh project briefs. Ask Kettle to reopen this project brief in chat.', { exact: true }).waitFor();
+    assert.equal(await card.getByRole('button').count(), 0);
+    await page.evaluate(html => { window.initializeEnabled = false; window.card.srcdoc = html; }, resource.text);
+    await card.getByText(/The (project brief did not load in time|ChatGPT connection is unavailable)/).first().waitFor({ timeout: 15_000 });
+    assert.equal(await card.getByRole('button').count(), 0);
     assert.deepEqual(errors, []);
     assert.deepEqual(requests, [], 'UI performs no network requests');
   } finally {
