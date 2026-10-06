@@ -1,5 +1,9 @@
 # Stage 2 B — generation and reference feasibility
 
+Continuation: [bounded live-trial preparation and provider review](../../evals/STAGE2-HANDOFF.md)
+reuses this harness, adds persistent local reservations, and records current access
+blockers. The historical evidence below remains fixture/mock-only.
+
 Recorded 2026-10-06. **Conditional go for a bounded description-only model trial;
 no-go for production reference discovery yet.** The executable fixtures and mocked
 OpenAI adapter pass locally. No model or reference-provider response has been

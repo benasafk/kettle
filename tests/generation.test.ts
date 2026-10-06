@@ -55,6 +55,8 @@ test('mock Responses request isolates untrusted content, uses structured output,
     const body = await request.json() as any;
     assert.equal(new URL(request.url).origin, 'https://api.openai.com');
     assert.equal(body.store, false);
+    assert.equal(body.service_tier, 'default');
+    assert.equal(request.redirect, 'error');
     assert.equal(body.text.format.strict, true);
     assert.equal(body.tools, undefined);
     assert.doesNotMatch(body.instructions, /48-hour/);
@@ -169,4 +171,18 @@ test('unsupported claims can pass structure but must fail factual review', async
   assert.ok(validateScript(script, input));
   assert.equal(passesFactualReview(unsupportedClaimReview), false);
   assert.equal(passesFactualReview({ ...unsupportedClaimReview, factual_integrity: 'pending' }), false);
+});
+
+test('incomplete paid output retains usage and bounded raw response for evaluation review', async () => {
+  const body = { ...envelope(await generated()), status: 'incomplete' };
+  const observations: GenerationObservation[] = [];
+  const captured: unknown[] = [];
+  const provider = new OpenAIGenerationProvider(options(mock(() => Response.json(body)), {
+    observe: value => observations.push(value), captureResponse: value => captured.push(value),
+  }));
+  await assert.rejects(provider.generate(input), { code: 'INVALID_OUTPUT' });
+  assert.deepEqual(captured, [body]);
+  assert.equal(observations[0]?.input_tokens, 100);
+  assert.equal(observations[0]?.output_tokens, 120);
+  assert.equal(observations[0]?.reserved_usd, 0.01);
 });
