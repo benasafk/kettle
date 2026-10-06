@@ -30,6 +30,7 @@ async function flow() {
   const auth = await fixtureAuth(config.clientId);
   const access = await auth.token();
   let exchanges = 0; let revoked = 0; let repositoryCalls = 0;
+  let tokenStatus = 200; let revocationStatus = 200;
   let tokenResponse = { access_token: access, refresh_token: 'fictional-refresh', token_type: 'Bearer' };
   const operations = createOperations(auth.verifier, { async call(name, account, input) {
     repositoryCalls++;
@@ -44,7 +45,7 @@ async function flow() {
   } });
   const fetcher = (async (url, init) => {
     assert.equal(init?.redirect, 'error');
-    if (String(url) === metadata.revocation_endpoint) { revoked++; return new Response(null, { status: 200 }); }
+    if (String(url) === metadata.revocation_endpoint) { revoked++; return new Response(null, { status: revocationStatus }); }
     assert.equal(String(url), metadata.token_endpoint); exchanges++;
     const form = new URLSearchParams(String(init?.body));
     assert.equal(form.get('client_secret'), config.clientSecret);
@@ -52,13 +53,15 @@ async function flow() {
       assert.equal(form.get('redirect_uri'), 'https://kettle.example/auth/callback');
       assert.equal(form.get('code_verifier')?.length, 43);
     }
-    return Response.json(tokenResponse);
+    return tokenStatus === 200 ? Response.json(tokenResponse) : Response.json({ error: 'invalid_grant' }, { status: tokenStatus });
   }) as typeof fetch;
   const call = (path: string, init: RequestInit = {}) => handleWebsiteAuth(new Request(`https://kettle.example${path}`, init), config, metadata, auth.verifier, operations, fetcher);
   const login = await call('/auth/login');
   const authorization = new URL(login.headers.get('location')!);
   const callback = `/auth/callback?state=${authorization.searchParams.get('state')}&code=fictional-code&iss=${encodeURIComponent(config.issuer)}`;
   return { auth, call, login, authorization, callback, counts: () => ({ exchanges, revoked, repositoryCalls }),
+    failTokenExchange: (status: number) => { tokenStatus = status; },
+    failRevocation: (status: number) => { revocationStatus = status; },
     setTokens: (tokens: typeof tokenResponse) => { tokenResponse = tokens; } };
 }
 test('website PKCE callback requires cookie-bound state and issuer, seals credentials in Secure HttpOnly cookie', async () => {
@@ -71,6 +74,10 @@ test('website PKCE callback requires cookie-bound state and issuer, seals creden
   const headers = { cookie: cookieHeader(f.login) };
   assert.equal((await f.call(f.callback.replace('state=', 'state=wrong'), { headers })).status, 401);
   assert.equal((await f.call(f.callback.replace(encodeURIComponent(config.issuer), 'https%3A%2F%2Fevil.example%2F'), { headers })).status, 401);
+  assert.equal((await f.call(f.callback.split('&iss=')[0]!, { headers })).status, 401, 'advertised issuer identification requires iss');
+  for (const duplicate of ['iss=https%3A%2F%2Fevil.example%2F', `iss=${encodeURIComponent(config.issuer)}`, 'code=second-code', 'state=second-state']) {
+    assert.equal((await f.call(`${f.callback}&${duplicate}`, { headers })).status, 401);
+  }
   assert.equal(f.counts().exchanges, 0);
   const signedIn = await f.call(f.callback, { headers });
   assert.equal(signedIn.status, 303);
@@ -141,4 +148,42 @@ test('website account and JSON API use the verified account; ownership injection
   f.auth.block();
   assert.equal((await f.call('/account', { headers: { cookie: cookies } })).status, 401);
   assert.equal(f.counts().repositoryCalls, count);
+});
+
+test('rejected refresh clears the session without retry and reconnects to the same account', async () => {
+  const f = await flow();
+  const signedIn = await f.call(f.callback, { headers: { cookie: cookieHeader(f.login) } });
+  f.failTokenExchange(400);
+  const rejected = await f.call('/auth/refresh', { method: 'POST', headers: {
+    cookie: cookieHeader(signedIn), Origin: 'https://kettle.example',
+  } });
+  assert.equal(rejected.status, 401);
+  assert.match(rejected.headers.get('set-cookie')!, /__Host-kettle-session=;.*Max-Age=0/);
+  assert.equal(f.counts().exchanges, 2, 'one login and one refresh; no automatic replay');
+  assert.equal(f.counts().repositoryCalls, 0);
+  const login = await f.call('/auth/login');
+  const state = new URL(login.headers.get('location')!).searchParams.get('state');
+  f.failTokenExchange(200);
+  const reconnect = await f.call(`/auth/callback?state=${state}&code=new-code&iss=${encodeURIComponent(config.issuer)}`, {
+    headers: { cookie: cookieHeader(login) },
+  });
+  assert.equal(reconnect.status, 303);
+  const account = await f.call('/account', { headers: { cookie: cookieHeader(reconnect) } });
+  assert.equal(account.status, 200);
+  assert.match(await account.text(), new RegExp(accountA));
+});
+
+test('provider revocation failure clears local cookies but a copied session persists until local block or expiry', async () => {
+  const f = await flow();
+  const signedIn = await f.call(f.callback, { headers: { cookie: cookieHeader(f.login) } });
+  const copied = cookieHeader(signedIn);
+  f.failRevocation(503);
+  const logout = await f.call('/auth/logout', { method: 'POST', headers: { cookie: copied, Origin: 'https://kettle.example' } });
+  assert.equal(logout.status, 502);
+  assert.match(await logout.text(), /provider revocation unavailable/);
+  for (const value of logout.headers.getSetCookie()) assert.match(value, /Max-Age=0/);
+  assert.equal(f.counts().revoked, 1);
+  assert.equal((await f.call('/account', { headers: { cookie: copied } })).status, 200);
+  f.auth.block();
+  assert.equal((await f.call('/account', { headers: { cookie: copied } })).status, 401);
 });

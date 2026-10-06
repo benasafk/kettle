@@ -1,11 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { discover, protectedResource, scopes } from '../packages/auth/index.ts';
 import { createOperations, failure } from '../packages/application/operations.ts';
 import { handleMcp } from '../apps/worker/mcp.ts';
 import { accountA, accountB, createInput } from './fixtures.ts';
 
 import { config, metadata, fixtureAuth } from './auth-fixtures.ts';
+
+test('captured kettle.eu.auth0.com public metadata passes the existing discovery boundary', async () => {
+  const evidenceFile = new URL('../docs/engineering/evidence/auth0-public-discovery-20261006.json', import.meta.url);
+  const evidence = JSON.parse(await readFile(evidenceFile, 'utf8'));
+  // Only the public issuer/resource are real. No client credential or live token
+  // exchange is involved; normal test runs replay the captured metadata offline.
+  const tenantConfig = { ...config, issuer: 'https://kettle.eu.auth0.com/',
+    resource: 'https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp' };
+  const discovered = await discover(tenantConfig, (async (url, init) => {
+    assert.equal(String(url), evidence.source);
+    assert.equal(init?.redirect, 'error');
+    return Response.json(evidence.metadata);
+  }) as typeof fetch);
+  assert.equal(discovered.issuer, tenantConfig.issuer);
+  assert.equal(discovered.authorization_response_iss_parameter_supported, true);
+  assert.ok(discovered.code_challenge_methods_supported.includes('S256'));
+  assert.ok(discovered.token_endpoint_auth_methods_supported.includes('client_secret_post'));
+});
 
 test('signed tokens validate issuer, resource, lifetime, algorithm, scopes before identity mapping', async () => {
   const auth = await fixtureAuth();

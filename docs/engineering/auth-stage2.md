@@ -1,8 +1,17 @@
 # Stage 2 authentication implementation and remaining proof
 
 Date: 2026-10-06. Status: local implementation; **hosted OAuth acceptance remains open**.
-The user confirmed that no Auth0 tenant/application exists. No tenant was created,
-remote auth setting changed, Worker deployed, or paid auth test performed.
+Update: the user supplied tenant `kettle.eu.auth0.com`, existing **Kettle Development
+Website** application and canonical development origin
+`https://kettle-stage2-development.g-baltramiejunas.workers.dev`. Public tenant discovery
+is compatible with the current validation checks; the Worker root still returns Hello
+World. API/client configuration, Bangkok's Kettle deployment and hosted identity migration,
+and actual OAuth acceptance remain pending. The original record below predates this update.
+
+Continuation in Nagoya: see the [exact development setup guide](auth-development-setup.md)
+and [new local evidence and lead handoff](auth-nagoya-evidence.md). The continuation fixes
+successful authenticated MCP response validation and adds signed-credential/SQL coverage;
+hosted acceptance is still open. The original implementation record below is retained.
 
 ## Decision and evidence
 
