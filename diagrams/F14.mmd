@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    U->>C: Request a new format or language
+    C->>K: Get selected script and facts
+    K->>D: Read script and source version
+    K-->>C: Original and constraints
+    C-->>U: Clarify variant and essential limits
+    U->>C: Specify target format
+    C->>C: Adapt lines, text, shots and timing
+    C->>K: Create variant linked to source version
+    alt Checks pass
+        K->>D: Store variant with its own current version
+        K-->>C: Variant ID; original preserved
+        C-->>U: Review variant or return to original
+        U->>C: Choose variant to revise or export
+        Note over U,D: Continue: Continue through F13 or F16
+    else Facts or structure need correction
+        K-->>C: Validation details; original unchanged
+        C-->>U: Ask for correction or retain original
+    end

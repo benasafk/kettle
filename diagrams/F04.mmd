@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant W as Kettle website
+    participant A as Identity provider
+    participant K as Kettle backend
+    U->>C: Resume protected work
+    C->>K: Call with current credentials
+    alt Token invalid or access revoked
+        K-->>C: Authorization required
+        C-->>U: Offer secure reconnection
+    else Wrong account identified
+        K-->>C: Connected account label
+        U->>C: Request account switch
+        C->>A: Revoke or replace connection
+    end
+    U->>W: Open secure sign-in or recovery
+    W->>A: Use identity-provider recovery
+    alt Recovery and consent succeed
+        A-->>W: Authenticated website session
+        U->>C: Complete supported OAuth reconnect
+        C->>K: Read newly connected account
+        K-->>C: Correct account and permitted work
+        C-->>U: Resume the selected task
+    else Recovery or consent incomplete
+        W-->>U: Explain next step without new work
+    end

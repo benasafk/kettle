@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant W as Kettle website
+    participant S as Stripe
+    participant K as Kettle backend
+    participant D as Database
+    alt A requested action exceeds access or quota
+        U->>C: Request metered action
+        C->>K: Attempt authorized operation
+        K->>D: Read entitlement and allowance
+        K-->>C: Limit or unavailable action; known reset
+        C-->>U: Explain status and allowed saved-work actions
+    else Payment failure or subscription change
+        opt User initiates management
+            U->>W: Manage payment, cancel or reactivate
+            W->>K: Request authenticated billing portal
+            K->>S: Create portal for account
+            K-->>W: Hosted portal destination
+            U->>S: Complete intended billing change
+        end
+        S->>K: Deliver signed lifecycle event
+        K->>K: Verify, deduplicate and reconcile order
+        K->>D: Store entitlement state and effective dates
+        W->>K: Read updated billing status
+        K-->>W: Failed, scheduled, expired or active
+        W-->>U: Explain dates and access
+        C->>K: Refresh access on next protected action
+        K-->>C: Current allowed operations
+    end

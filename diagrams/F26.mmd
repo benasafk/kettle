@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant N as New chat / device
+    participant K as Kettle backend
+    participant D as Database
+    U->>N: Open Kettle on another surface
+    Note over U,D: Continue: Connect or reauthorize through F01/F04 if needed
+    N->>K: List authorized projects and saved work
+    K->>D: Read account-owned records
+    K-->>N: Available work
+    U->>N: Choose project and piece
+    N->>K: Get current script/result version
+    K->>D: Read current saved state
+    K-->>N: Content and explicit IDs
+    alt Panel supported
+        N-->>U: Show panel with current selection
+        N->>N: Share selection and visible order with chat
+    else Panel unavailable or unsupported
+        N-->>U: Show useful text and named actions
+    end
+    U->>N: Revise this or choose the second idea
+    alt Context is clear and current
+        N->>K: Act using owned IDs and expected version
+        K-->>N: Result or version conflict
+        N-->>U: Show outcome or resolve conflict
+    else Context is stale or ambiguous
+        N-->>U: Refresh or clarify before acting
+    end

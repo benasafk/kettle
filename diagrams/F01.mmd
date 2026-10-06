@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant W as Kettle website
+    participant A as Identity provider
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    U->>W: Sign up or sign in
+    W->>A: Authenticate account
+    A-->>W: Website session
+    W-->>U: Show Open in ChatGPT
+    U->>C: Open supported Kettle entry
+    opt ChatGPT login / installation needed
+        U->>C: Complete required host steps
+    end
+    C->>A: Start OAuth with PKCE
+    U->>A: Grant requested access
+    A-->>C: Authorization code
+    C->>A: Exchange code with PKCE verifier
+    A-->>C: Access token
+    C->>K: Read account with token
+    K->>K: Validate token and account
+    K->>D: Read entitlements and projects
+    D-->>K: Account state
+    K-->>C: Available work and actions
+    C-->>U: Start or resume a project

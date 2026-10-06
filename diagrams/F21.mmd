@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant W as Kettle website
+    participant S as Stripe
+    participant K as Kettle backend
+    participant D as Database
+    participant C as ChatGPT + panel
+    U->>W: Choose adopted plan or trial
+    W->>K: Request account-bound billing action
+    alt Checkout is required
+        K->>S: Create account-bound checkout
+        S-->>K: Checkout session
+        K-->>W: Hosted checkout destination
+        U->>S: Complete payment or billing setup
+        alt Successful checkout
+            S-->>W: Browser return; confirmation may be pending
+            S->>K: Send signed billing webhook
+            K->>K: Verify and deduplicate billing event
+            K->>D: Update entitlement from verified state
+        else Checkout cancelled or failed
+            S-->>W: Return without confirmed access
+        end
+    else Trial requires no checkout
+        K->>K: Check adopted trial eligibility
+        K->>D: Create eligible trial entitlement once
+    end
+    W->>K: Read current account access
+    K-->>W: Active, pending or unavailable
+    W-->>U: Show state and Open in ChatGPT
+    U->>C: Open Kettle and connect if needed
+    C->>K: Refresh authorized account state
+    K-->>C: Permitted actions
+    C-->>U: Resume when access is available

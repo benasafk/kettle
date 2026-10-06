@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    U->>C: Paste script and state the task
+    C->>C: Distinguish own draft from reference
+    alt Feedback only
+        C-->>U: Explain suggested improvements
+        Note over U,D: No import or saved rewrite is required.
+    else User requests editing in Kettle
+        C-->>U: Confirm target project and essentials
+        U->>C: Supply missing context
+        C->>K: Import original script
+        K->>D: Store original and fact origins
+        K-->>C: Script ID and base version
+        C->>C: Draft requested revision
+        alt Explicit instruction to apply edit
+            C->>K: Save revision against base version
+            K->>D: Append checked revision
+            K-->>C: New current version
+            C-->>U: Show saved edit with undo
+        else Suggestion or comparison requested
+            C->>K: Store candidate without applying
+            K->>D: Preserve current; store candidate
+            C-->>U: Keep mine or Use new
+            Note over U,D: Continue: Acceptance and conflict handling: F13/F15
+        end
+    end

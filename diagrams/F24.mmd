@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant W as Kettle website
+    participant K as Kettle backend
+    participant D as Database
+    participant J as Job runner
+    participant X as External services
+    U->>W: Request account data export or deletion
+    W->>K: Send authenticated account request
+    K->>K: Verify identity and request scope
+    alt Export account data
+        K->>J: Queue authorized export job
+        K-->>W: Request ID and preparing state
+        J->>D: Read permitted account data
+        J->>K: Store secured export result
+        W->>K: Read export status
+        K-->>W: Secure account-bound download
+        W-->>U: Deliver export and access expiry
+    else Delete account
+        K->>D: Read affected records and active jobs
+        K-->>W: Impact, billing and retention explanation
+        W-->>U: Request explicit deletion confirmation
+        U->>W: Confirm deletion
+        W->>K: Submit confirmed request
+        K->>D: Mark deleting; block new work
+        K->>J: Stop future jobs and run deletion plan
+        K->>X: Revoke access and handle billing/providers
+        J->>D: Delete or retain records per policy
+        J->>K: Record completion and remaining retention
+        K-->>W: Truthful request status
+        W-->>U: Show confirmation and retention limits
+    end

@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant J as Job runner
+    U->>C: Leave while work is running
+    J->>D: Persist real steps independently
+    U->>C: Return and ask for progress
+    C->>K: Find or read owned job
+    K->>D: Read actual state and partial result IDs
+    K-->>C: Queued, running or final outcome
+    alt Ready, fewer matches, or no match
+        C-->>U: Show usable result and limitations
+    else Failed and user requests retry
+        U->>C: Try again
+        C->>K: Retry with logical request context
+        K->>K: Check access and adopted quota policy
+        K->>J: Resume saved stage or bounded retry
+        K-->>C: Actual job state
+    else User requests cancellation
+        U->>C: Cancel this job
+        C->>K: Record cancellation request
+        K->>D: Mark cancellation requested
+        K->>J: Stop future stages where possible
+        K-->>C: Cancellation requested; not guaranteed
+        J->>D: Finalize completed or cancelled outcome
+        K->>D: Settle reserved usage once
+        C->>K: Read final outcome
+        K-->>C: Actual completion/cancellation state
+        C-->>U: Explain outcome and usage
+    end
