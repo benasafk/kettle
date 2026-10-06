@@ -13,7 +13,7 @@ export function createSupabaseRepository(
   return {
     async call(operation, accountId, input) {
       const response = await fetcher(new URL(`/rest/v1/rpc/kettle_${operation}`, url), {
-        method: 'POST', redirect: 'error',
+        method: 'POST', redirect: 'manual',
         headers: { 'Content-Type': 'application/json', apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
         body: JSON.stringify({ p_account_id: accountId, p_input: input }),
         signal: AbortSignal.timeout(10_000),
@@ -30,7 +30,7 @@ export function createSupabaseIdentityResolver(baseUrl: string, serviceRoleKey: 
   createSupabaseRepository(baseUrl, serviceRoleKey, fetcher);
   return async (issuer: string, subject: string, issuedAt: number): Promise<string | null> => {
     const response = await fetcher(new URL('/rest/v1/rpc/kettle_resolve_identity', baseUrl), {
-      method: 'POST', redirect: 'error',
+      method: 'POST', redirect: 'manual',
       headers: { 'Content-Type': 'application/json', apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
       body: JSON.stringify({ p_issuer: issuer, p_subject: subject, p_issued_at: issuedAt }),
       signal: AbortSignal.timeout(10_000),

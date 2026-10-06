@@ -65,7 +65,7 @@ export async function handleWebsiteAuth(request: Request, config: AuthConfig, me
     body.set('client_id', config.clientId);
     body.set('client_secret', config.clientSecret);
     return tokensSchema.parse(await readJsonBounded(await fetcher(metadata.token_endpoint, {
-      method: 'POST', redirect: 'error', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
+      method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body,
       signal: AbortSignal.timeout(10_000),
     })));
   };
@@ -106,7 +106,7 @@ export async function handleWebsiteAuth(request: Request, config: AuthConfig, me
       try {
         const session = sessionSchema.parse(await unseal(config, readCookie(request, SESSION), 'website-session'));
         if (session.refresh) {
-          const response = await fetcher(metadata.revocation_endpoint, { method: 'POST', redirect: 'error',
+          const response = await fetcher(metadata.revocation_endpoint, { method: 'POST', redirect: 'manual',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ token: session.refresh, token_type_hint: 'refresh_token', client_id: config.clientId, client_secret: config.clientSecret }),
             signal: AbortSignal.timeout(5000) });

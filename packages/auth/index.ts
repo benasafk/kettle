@@ -51,7 +51,7 @@ export async function readJsonBounded(response: Response, limit = 32_768): Promi
 export async function discover(config: AuthConfig, fetcher: typeof fetch = fetch): Promise<AuthMetadata> {
   validateConfig(config);
   const response = await fetcher(new URL('.well-known/openid-configuration', config.issuer), {
-    redirect: 'error', signal: AbortSignal.timeout(5000),
+    redirect: 'manual', signal: AbortSignal.timeout(5000),
   });
   const metadata = metadataSchema.parse(await readJsonBounded(response));
   if (metadata.issuer !== config.issuer || !metadata.code_challenge_methods_supported.includes('S256')
