@@ -31,6 +31,7 @@ async function flow() {
   const access = await auth.token();
   let exchanges = 0; let revoked = 0; let repositoryCalls = 0;
   let tokenStatus = 200; let revocationStatus = 200;
+  const revokedTokens: string[] = [];
   let tokenResponse = { access_token: access, refresh_token: 'fictional-refresh', token_type: 'Bearer' };
   const operations = createOperations(auth.verifier, { async call(name, account, input) {
     repositoryCalls++;
@@ -45,7 +46,14 @@ async function flow() {
   } });
   const fetcher = (async (url, init) => {
     assert.equal(init?.redirect, 'manual');
-    if (String(url) === metadata.revocation_endpoint) { revoked++; return new Response(null, { status: revocationStatus }); }
+    if (String(url) === metadata.revocation_endpoint) {
+      const form = new URLSearchParams(String(init?.body));
+      assert.equal(form.get('client_id'), config.clientId);
+      assert.equal(form.get('client_secret'), config.clientSecret);
+      assert.equal(form.get('token_type_hint'), 'refresh_token');
+      revokedTokens.push(form.get('token')!);
+      revoked++; return new Response(null, { status: revocationStatus });
+    }
     assert.equal(String(url), metadata.token_endpoint); exchanges++;
     const form = new URLSearchParams(String(init?.body));
     assert.equal(form.get('client_secret'), config.clientSecret);
@@ -60,6 +68,7 @@ async function flow() {
   const authorization = new URL(login.headers.get('location')!);
   const callback = `/auth/callback?state=${authorization.searchParams.get('state')}&code=fictional-code&iss=${encodeURIComponent(config.issuer)}`;
   return { auth, call, login, authorization, callback, counts: () => ({ exchanges, revoked, repositoryCalls }),
+    revokedTokens,
     failTokenExchange: (status: number) => { tokenStatus = status; },
     failRevocation: (status: number) => { revocationStatus = status; },
     setTokens: (tokens: typeof tokenResponse) => { tokenResponse = tokens; } };
@@ -186,4 +195,26 @@ test('provider revocation failure clears local cookies but a copied session pers
   assert.equal((await f.call('/account', { headers: { cookie: copied } })).status, 200);
   f.auth.block();
   assert.equal((await f.call('/account', { headers: { cookie: copied } })).status, 401);
+});
+
+test('logout submits the latest rotated refresh token; a successful fixture revoke is not access-token invalidation', async () => {
+  const f = await flow();
+  const signedIn = await f.call(f.callback, { headers: { cookie: cookieHeader(f.login) } });
+  f.setTokens({ access_token: await f.auth.token(), refresh_token: 'latest-rotated-fixture', token_type: 'Bearer' });
+  const refreshed = await f.call('/auth/refresh', { method: 'POST', headers: {
+    cookie: cookieHeader(signedIn), Origin: 'https://kettle.example',
+  } });
+  assert.equal(refreshed.status, 303);
+  const latestCookie = cookieHeader(refreshed);
+  const logout = await f.call('/auth/logout', { method: 'POST', headers: {
+    cookie: latestCookie, Origin: 'https://kettle.example',
+  } });
+  assert.equal(logout.status, 303);
+  assert.deepEqual(f.revokedTokens, ['latest-rotated-fixture']);
+  assert.equal(f.counts().revoked, 1);
+  // The provider is mocked: this proves the application has no immediate
+  // access-token invalidation hook, not that Auth0 revoked a real grant.
+  assert.equal((await f.call('/account', { headers: { cookie: latestCookie } })).status, 200);
+  f.auth.block();
+  assert.equal((await f.call('/account', { headers: { cookie: latestCookie } })).status, 401);
 });
