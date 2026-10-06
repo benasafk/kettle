@@ -4,6 +4,11 @@ Date: 2026-10-06. Status: local implementation; **hosted OAuth acceptance remain
 The user confirmed that no Auth0 tenant/application exists. No tenant was created,
 remote auth setting changed, Worker deployed, or paid auth test performed.
 
+Continuation in Nagoya: see the [exact development setup guide](auth-development-setup.md)
+and [new local evidence and lead handoff](auth-nagoya-evidence.md). The continuation fixes
+successful authenticated MCP response validation and adds signed-credential/SQL coverage;
+hosted acceptance is still open. The original implementation record below is retained.
+
 ## Decision and evidence
 
 Use an established OAuth authorization server. The implemented resource-server and
