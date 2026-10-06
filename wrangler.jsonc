@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kettle-foundation",
+  "main": "apps/worker/index.ts",
+  "compatibility_date": "2026-10-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "workflows": [{
+    "name": "kettle-foundation-check",
+    "binding": "FOUNDATION_WORKFLOW",
+    "class_name": "FoundationWorkflow"
+  }]
+}

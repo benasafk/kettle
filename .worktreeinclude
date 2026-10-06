@@ -1,0 +1,2 @@
+# Do not copy .env files or workspace database state automatically.
+# Each workspace generates its own local configuration with npm run setup.

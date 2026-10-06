@@ -1,5 +1,23 @@
 # Kettle Conductor Reference Pack
 
+## Runnable engineering foundation
+
+Stage 1 implementation is available alongside this original reference pack.
+See the [setup and verification guide](docs/engineering/README.md),
+[implemented contracts](docs/engineering/contracts.md), and
+[engineering decisions](docs/engineering/decisions.md).
+
+```sh
+npm run setup
+npm run dev
+# In another terminal:
+npm run check
+```
+
+The local MCP server exposes a harmless diagnostic only. Product authentication
+and hosted integration are the [next assignments](docs/engineering/assignments/A-auth-persistence.md).
+The original reference-pack content continues below.
+
 Prepared 6 October 2026 for Gustas and the agents building Kettle.
 
 Kettle helps people move from a product or content brief to reference-backed video ideas, a usable filming script, and saved revisions inside ChatGPT. This pack brings the product direction, engineering proposals, and unresolved decisions together so each development task starts with the same context.
