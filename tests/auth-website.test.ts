@@ -2,13 +2,30 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { jwtDecrypt } from 'jose';
 import { createOperations, failure } from '../packages/application/operations.ts';
-import { handleWebsiteAuth } from '../packages/auth/website.ts';
+import { handleWebsiteAuth, websiteAuthUnavailable } from '../packages/auth/website.ts';
 import { config, metadata, fixtureAuth } from './auth-fixtures.ts';
 import { accountA, accountB, createInput } from './fixtures.ts';
 
 function cookieHeader(response: Response) {
   return response.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
 }
+test('discovery outage still permits same-origin local logout, without claiming remote revocation', async () => {
+  const response = websiteAuthUnavailable(new Request('https://kettle.example/auth/logout', {
+    method: 'POST', headers: { Origin: 'https://kettle.example' },
+  }), config);
+  assert.equal(response.status, 502);
+  assert.equal(response.headers.getSetCookie().length, 2);
+  for (const value of response.headers.getSetCookie()) assert.match(value, /HttpOnly; Secure; SameSite=Lax; Max-Age=0/);
+  assert.match(await response.text(), /revocation unconfirmed/);
+  for (const init of [{ method: 'GET' }, { method: 'POST', headers: { Origin: 'https://evil.example' } }]) {
+    const denied = websiteAuthUnavailable(new Request('https://kettle.example/auth/logout', init), config);
+    assert.equal(denied.status, 403);
+    assert.equal(denied.headers.get('set-cookie'), null);
+  }
+  const unavailable = websiteAuthUnavailable(new Request('https://kettle.example/account'), config);
+  assert.equal(unavailable.status, 503);
+  assert.equal(unavailable.headers.get('set-cookie'), null);
+});
 async function flow() {
   const auth = await fixtureAuth(config.clientId);
   const access = await auth.token();

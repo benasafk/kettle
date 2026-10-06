@@ -39,6 +39,21 @@ export function sameOriginPost(request: Request, config: AuthConfig) {
   return request.method === 'POST' && request.headers.get('origin') === new URL(config.resource).origin
     && !['cross-site', 'none'].includes(request.headers.get('sec-fetch-site') ?? '');
 }
+/** Discovery may fail before the website handler runs. Local logout must still
+ * clear browser credentials, without claiming provider revocation succeeded. */
+export function websiteAuthUnavailable(request: Request, config: AuthConfig): Response {
+  const headers = new Headers({ 'Cache-Control': 'no-store' });
+  const url = new URL(request.url);
+  if (url.pathname === '/auth/logout') {
+    if (url.origin !== new URL(config.resource).origin || !sameOriginPost(request, config)) {
+      return new Response('Same-origin POST required', { status: 403, headers });
+    }
+    headers.append('Set-Cookie', cookie(SESSION, '', 0));
+    headers.append('Set-Cookie', cookie(TRANSACTION, '', 0));
+    return Response.json({ error: 'Signed out locally; provider revocation unconfirmed' }, { status: 502, headers });
+  }
+  return new Response('Authentication service unavailable', { status: 503, headers });
+}
 export async function handleWebsiteAuth(request: Request, config: AuthConfig, metadata: AuthMetadata,
   verifier: IdentityVerifier, operations: ReturnType<typeof createOperations>, fetcher: typeof fetch = fetch): Promise<Response> {
   const url = new URL(request.url);

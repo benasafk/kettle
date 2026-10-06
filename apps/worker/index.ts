@@ -2,7 +2,7 @@ import { handleMcp } from './mcp.ts';
 import { website } from '../web/index.ts';
 import { authConfig, authServices } from './auth.ts';
 import { protectedResource } from '../../packages/auth/index.ts';
-import { handleWebsiteAuth } from '../../packages/auth/website.ts';
+import { handleWebsiteAuth, websiteAuthUnavailable } from '../../packages/auth/website.ts';
 export { FoundationWorkflow } from './workflow.ts';
 
 export default {
@@ -35,7 +35,7 @@ export default {
       try {
         const services = await authServices(env, config);
         return await handleWebsiteAuth(request, config, services.metadata, services.websiteVerifier, services.websiteOperations);
-      } catch { return new Response('Authentication service unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
+      } catch { return websiteAuthUnavailable(request, config); }
     }
     return new Response('Not found', { status: 404 });
   },

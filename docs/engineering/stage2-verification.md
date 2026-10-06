@@ -1,5 +1,10 @@
 # Stage 2 implementation and evidence — 2026-10-06
 
+PR review follow-up: fixed local logout when authorization-server discovery fails,
+while retaining same-origin POST checks and reporting remote revocation as unconfirmed.
+`npm run check` passed on Node 22.23.3 with 41 tests, TypeScript, bundle and workerd smoke.
+The historical 40-test integration run below predates this regression test.
+
 Stage 2 is **in progress, not complete**. The local database gap is closed. Real
 ChatGPT OAuth and live generation/provider evaluation still have external dependencies.
 
