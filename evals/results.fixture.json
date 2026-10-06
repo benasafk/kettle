@@ -1,0 +1,637 @@
+{
+  "recorded_at": "2026-10-06T11:28:14.571Z",
+  "environment": {
+    "node": "v26.8.2",
+    "platform": "darwin"
+  },
+  "evidence": "Authored fixture playback only; timings measure local validation/assembly, not provider latency or user experience.",
+  "results": [
+    {
+      "case": "B01-description",
+      "input": {
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "brief": {
+          "product": "Fictional rechargeable desk lamp",
+          "audience": "Remote workers",
+          "goal": "Show the product in a short filmable video",
+          "tone": "Calm and practical",
+          "language": "en",
+          "duration_seconds": 20,
+          "filming_constraints": [
+            "One person",
+            "Home desk"
+          ],
+          "facts": [
+            {
+              "id": "20000000-0000-4000-8000-000000000001",
+              "statement": "This rechargeable desk lamp has three brightness settings.",
+              "source": {
+                "kind": "user",
+                "captured_at": "2026-10-06T00:00:00Z"
+              },
+              "user_confirmed": true
+            }
+          ]
+        }
+      },
+      "idea": "One desk, three settings",
+      "references": {
+        "status": "no_match",
+        "references": [],
+        "limitations": [
+          "Synthetic fixture; no live provider was queried."
+        ],
+        "provenance": "fixture",
+        "latency_ms": 0,
+        "cost_usd": 0,
+        "cost_is_estimate": false
+      },
+      "script": {
+        "origin": "fixture",
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "language": "en",
+        "estimated_duration_seconds": 20,
+        "sections": [
+          {
+            "spoken": "One desk. Three brightness settings.",
+            "shot": "0–5s: Lock a phone on the home desk; lamp in frame.",
+            "on_screen_text": "Three settings",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Here is each one.",
+            "shot": "5–15s: With exposure locked, show a hand cycling through all three settings. Label the cuts 1, 2, 3.",
+            "on_screen_text": "1 → 2 → 3",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Which would you choose?",
+            "shot": "15–20s: Hold on the lamp beside an open notebook.",
+            "on_screen_text": "Which setting?",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          }
+        ],
+        "reference_ids": [],
+        "limitations": [
+          "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed."
+        ]
+      },
+      "observation": {
+        "provenance": "fixture",
+        "provider": "authored_fixture",
+        "model": null,
+        "fixture_version": 1,
+        "attempts": 1,
+        "acknowledgement_ms": null,
+        "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
+        "reference_ms": 0.3016669999999948,
+        "generation_ms": 0.5519589999999965,
+        "total_ms": 0.8676669999999973,
+        "first_usable_idea_ms": null,
+        "refinement_ms": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_cost_usd": 0,
+        "cost_per_usable_live_reference_usd": null,
+        "cost_per_live_script_usd": null,
+        "missing_cost_components": [
+          "Human authoring/review",
+          "Infrastructure allocation",
+          "No live model or reference observations"
+        ]
+      }
+    },
+    {
+      "case": "B01-reference",
+      "input": {
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "brief": {
+          "product": "Fictional rechargeable desk lamp",
+          "audience": "Remote workers",
+          "goal": "Show the product in a short filmable video",
+          "tone": "Calm and practical",
+          "language": "en",
+          "duration_seconds": 20,
+          "filming_constraints": [
+            "One person",
+            "Home desk"
+          ],
+          "facts": [
+            {
+              "id": "20000000-0000-4000-8000-000000000001",
+              "statement": "This rechargeable desk lamp has three brightness settings.",
+              "source": {
+                "kind": "user",
+                "captured_at": "2026-10-06T00:00:00Z"
+              },
+              "user_confirmed": true
+            }
+          ]
+        }
+      },
+      "idea": "A desk reveal in three cuts",
+      "references": {
+        "status": "matched",
+        "references": [
+          {
+            "id": "fixture:desk-reveal",
+            "provider": "authored_fixture",
+            "url": "https://example.com/fictional-desk-reveal",
+            "observed_at": "2026-10-06T00:00:00Z",
+            "permitted_use": "fixture_only",
+            "permission_basis": "Original fictional format notes authored for this repository; no external content."
+          }
+        ],
+        "limitations": [
+          "Synthetic reference: media/transcript/metrics absent; freshness unknown."
+        ],
+        "provenance": "fixture",
+        "latency_ms": 0,
+        "cost_usd": 0,
+        "cost_is_estimate": false
+      },
+      "script": {
+        "origin": "fixture",
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "language": "en",
+        "estimated_duration_seconds": 20,
+        "sections": [
+          {
+            "spoken": "An empty corner. One desk lamp.",
+            "shot": "0–5s: Frame an empty desk corner, then slide the lamp into view.",
+            "on_screen_text": "A corner for your lamp",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Three brightness settings to try.",
+            "shot": "5–15s: Match-cut the same fixed frame at each brightness setting; lock exposure.",
+            "on_screen_text": "Setting 1 / Setting 2 / Setting 3",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Which setting fits your desk?",
+            "shot": "15–20s: A hand opens a notebook beside the lamp.",
+            "on_screen_text": "Your desk. Your setting.",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          }
+        ],
+        "reference_ids": [
+          "fixture:desk-reveal"
+        ],
+        "limitations": [
+          "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed.",
+          "Adapted only from authored fixture format notes; no media, transcript, engagement metrics or real-world freshness evidence."
+        ]
+      },
+      "observation": {
+        "provenance": "fixture",
+        "provider": "authored_fixture",
+        "model": null,
+        "fixture_version": 1,
+        "attempts": 1,
+        "acknowledgement_ms": null,
+        "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
+        "reference_ms": 0.23629199999999173,
+        "generation_ms": 0.07887499999999648,
+        "total_ms": 0.31929200000000435,
+        "first_usable_idea_ms": null,
+        "refinement_ms": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_cost_usd": 0,
+        "cost_per_usable_live_reference_usd": null,
+        "cost_per_live_script_usd": null,
+        "missing_cost_components": [
+          "Human authoring/review",
+          "Infrastructure allocation",
+          "No live model or reference observations"
+        ]
+      }
+    },
+    {
+      "case": "B02-silent",
+      "input": {
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "brief": {
+          "product": "Fictional studio blue ceramic mug",
+          "audience": "People who enjoy quiet desk rituals",
+          "goal": "Show the product in a short filmable video",
+          "tone": "Calm and practical",
+          "language": "en",
+          "duration_seconds": 15,
+          "filming_constraints": [
+            "No face",
+            "No speech"
+          ],
+          "facts": [
+            {
+              "id": "20000000-0000-4000-8000-000000000001",
+              "statement": "The studio makes blue ceramic mugs.",
+              "source": {
+                "kind": "user",
+                "captured_at": "2026-10-06T00:00:00Z"
+              },
+              "user_confirmed": true
+            }
+          ]
+        }
+      },
+      "idea": "A quiet blue-mug ritual",
+      "references": {
+        "status": "no_match",
+        "references": [],
+        "limitations": [
+          "Synthetic fixture; no live provider was queried."
+        ],
+        "provenance": "fixture",
+        "latency_ms": 0,
+        "cost_usd": 0,
+        "cost_is_estimate": false
+      },
+      "script": {
+        "origin": "fixture",
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "language": "en",
+        "estimated_duration_seconds": 15,
+        "sections": [
+          {
+            "spoken": "",
+            "shot": "0–5s: Close-up of hands setting the blue ceramic mug on a plain desk; keep faces out of frame.",
+            "on_screen_text": "A little blue",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "",
+            "shot": "5–10s: Slowly turn the mug to show its shape and blue surface.",
+            "on_screen_text": "Blue ceramic",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "",
+            "shot": "10–15s: Pull back to show the mug beside a closed notebook. Silent soundtrack.",
+            "on_screen_text": "For your next quiet moment",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          }
+        ],
+        "reference_ids": [],
+        "limitations": [
+          "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed."
+        ]
+      },
+      "observation": {
+        "provenance": "fixture",
+        "provider": "authored_fixture",
+        "model": null,
+        "fixture_version": 1,
+        "attempts": 1,
+        "acknowledgement_ms": null,
+        "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
+        "reference_ms": 0.011250000000003979,
+        "generation_ms": 0.048500000000004206,
+        "total_ms": 0.06279099999999005,
+        "first_usable_idea_ms": null,
+        "refinement_ms": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_cost_usd": 0,
+        "cost_per_usable_live_reference_usd": null,
+        "cost_per_live_script_usd": null,
+        "missing_cost_components": [
+          "Human authoring/review",
+          "Infrastructure allocation",
+          "No live model or reference observations"
+        ]
+      }
+    },
+    {
+      "case": "B03-product-page-fixture",
+      "input": {
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "brief": {
+          "product": "Fictional meal planner app",
+          "audience": "Busy parents",
+          "goal": "Show the product in a short filmable video",
+          "tone": "Calm and practical",
+          "language": "en",
+          "duration_seconds": 25,
+          "filming_constraints": [
+            "One phone screen recording; no personal data"
+          ],
+          "facts": [
+            {
+              "id": "20000000-0000-4000-8000-000000000001",
+              "statement": "The app supports weekly meal plans and shopping lists.",
+              "source": {
+                "kind": "url",
+                "url": "https://example.com/fictional-meal-planner",
+                "captured_at": "2026-10-06T00:00:00Z"
+              },
+              "user_confirmed": true
+            }
+          ]
+        }
+      },
+      "idea": "From week plan to shopping list",
+      "references": {
+        "status": "no_match",
+        "references": [],
+        "limitations": [
+          "Synthetic fixture; no live provider was queried."
+        ],
+        "provenance": "fixture",
+        "latency_ms": 0,
+        "cost_usd": 0,
+        "cost_is_estimate": false
+      },
+      "script": {
+        "origin": "fixture",
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "language": "en",
+        "estimated_duration_seconds": 25,
+        "sections": [
+          {
+            "spoken": "What is on the menu this week?",
+            "shot": "0–5s: Screen recording of a fictional demo account with no private data.",
+            "on_screen_text": "This week’s meals",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Build your weekly meal plan.",
+            "shot": "5–15s: Record the app’s actual weekly-plan screen; point to a meal entry. Confirm UI before filming.",
+            "on_screen_text": "Plan the week",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Keep your shopping list in the app too.",
+            "shot": "15–25s: Switch to the shopping-list screen. Do not imply automatic list generation unless verified.",
+            "on_screen_text": "Weekly plans + shopping lists",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          }
+        ],
+        "reference_ids": [],
+        "limitations": [
+          "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed.",
+          "The example.com product page is a fictional fact source, not a fetched page."
+        ]
+      },
+      "observation": {
+        "provenance": "fixture",
+        "provider": "authored_fixture",
+        "model": null,
+        "fixture_version": 1,
+        "attempts": 1,
+        "acknowledgement_ms": null,
+        "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
+        "reference_ms": 0.008958000000006905,
+        "generation_ms": 0.05779199999999207,
+        "total_ms": 0.06983400000000017,
+        "first_usable_idea_ms": null,
+        "refinement_ms": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_cost_usd": 0,
+        "cost_per_usable_live_reference_usd": null,
+        "cost_per_live_script_usd": null,
+        "missing_cost_components": [
+          "Human authoring/review",
+          "Infrastructure allocation",
+          "No live model or reference observations"
+        ]
+      }
+    },
+    {
+      "case": "B05-old",
+      "input": {
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "brief": {
+          "product": "Fictional bag",
+          "audience": "Commuters",
+          "goal": "Show the product in a short filmable video",
+          "tone": "Calm and practical",
+          "language": "en",
+          "duration_seconds": 15,
+          "filming_constraints": [
+            "Hands only"
+          ],
+          "facts": [
+            {
+              "id": "20000000-0000-4000-8000-000000000001",
+              "statement": "The bag has two pockets.",
+              "source": {
+                "kind": "user",
+                "captured_at": "2026-10-06T00:00:00Z"
+              },
+              "user_confirmed": true
+            }
+          ]
+        }
+      },
+      "idea": "Two-pocket packing demonstration",
+      "references": {
+        "status": "no_match",
+        "references": [],
+        "limitations": [
+          "Synthetic fixture; no live provider was queried."
+        ],
+        "provenance": "fixture",
+        "latency_ms": 0,
+        "cost_usd": 0,
+        "cost_is_estimate": false
+      },
+      "script": {
+        "origin": "fixture",
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 1,
+        "language": "en",
+        "estimated_duration_seconds": 15,
+        "sections": [
+          {
+            "spoken": "Two pockets. What goes where?",
+            "shot": "0–5s: Hands place the fictional bag on a table.",
+            "on_screen_text": "Two pockets",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Show your everyday setup.",
+            "shot": "5–15s: Point to each of the two pockets. Use only objects confirmed to fit.",
+            "on_screen_text": "Your everyday setup",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          }
+        ],
+        "reference_ids": [],
+        "limitations": [
+          "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed.",
+          "Historical version only; must not replace work for brief version 2."
+        ]
+      },
+      "observation": {
+        "provenance": "fixture",
+        "provider": "authored_fixture",
+        "model": null,
+        "fixture_version": 1,
+        "attempts": 1,
+        "acknowledgement_ms": null,
+        "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
+        "reference_ms": 0.011125000000006935,
+        "generation_ms": 0.05145799999999667,
+        "total_ms": 0.06529199999999946,
+        "first_usable_idea_ms": null,
+        "refinement_ms": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_cost_usd": 0,
+        "cost_per_usable_live_reference_usd": null,
+        "cost_per_live_script_usd": null,
+        "missing_cost_components": [
+          "Human authoring/review",
+          "Infrastructure allocation",
+          "No live model or reference observations"
+        ]
+      }
+    },
+    {
+      "case": "B05-revised",
+      "input": {
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 2,
+        "brief": {
+          "product": "Fictional bag",
+          "audience": "Commuters",
+          "goal": "Show the product in a short filmable video",
+          "tone": "Calm and practical",
+          "language": "en",
+          "duration_seconds": 15,
+          "filming_constraints": [
+            "Hands only"
+          ],
+          "facts": [
+            {
+              "id": "20000000-0000-4000-8000-000000000001",
+              "statement": "The bag has three pockets.",
+              "source": {
+                "kind": "user",
+                "captured_at": "2026-10-06T00:00:00Z"
+              },
+              "user_confirmed": true
+            }
+          ]
+        }
+      },
+      "idea": "Three-pocket packing demonstration",
+      "references": {
+        "status": "no_match",
+        "references": [],
+        "limitations": [
+          "Synthetic fixture; no live provider was queried."
+        ],
+        "provenance": "fixture",
+        "latency_ms": 0,
+        "cost_usd": 0,
+        "cost_is_estimate": false
+      },
+      "script": {
+        "origin": "fixture",
+        "project_id": "10000000-0000-4000-8000-000000000001",
+        "brief_version": 2,
+        "language": "en",
+        "estimated_duration_seconds": 15,
+        "sections": [
+          {
+            "spoken": "Three pockets. What goes where?",
+            "shot": "0–5s: Hands place the fictional bag on a table.",
+            "on_screen_text": "Three pockets",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          },
+          {
+            "spoken": "Show your everyday setup.",
+            "shot": "5–15s: Point to each of the three pockets. Use only objects confirmed to fit.",
+            "on_screen_text": "Your everyday setup",
+            "fact_ids": [
+              "20000000-0000-4000-8000-000000000001"
+            ]
+          }
+        ],
+        "reference_ids": [],
+        "limitations": [
+          "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed."
+        ]
+      },
+      "observation": {
+        "provenance": "fixture",
+        "provider": "authored_fixture",
+        "model": null,
+        "fixture_version": 1,
+        "attempts": 1,
+        "acknowledgement_ms": null,
+        "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
+        "reference_ms": 0.008624999999994998,
+        "generation_ms": 0.033999999999991815,
+        "total_ms": 0.04520800000000236,
+        "first_usable_idea_ms": null,
+        "refinement_ms": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "api_cost_usd": 0,
+        "cost_per_usable_live_reference_usd": null,
+        "cost_per_live_script_usd": null,
+        "missing_cost_components": [
+          "Human authoring/review",
+          "Infrastructure allocation",
+          "No live model or reference observations"
+        ]
+      }
+    }
+  ],
+  "inaccessible_profile": {
+    "id": "B04-inaccessible",
+    "provenance": "fixture",
+    "url": "https://example.com/inaccessible-running-profile",
+    "supplied_description": "I make beginner running videos.",
+    "status": "needs_input",
+    "fetched": false,
+    "response": "I have not inspected this profile. Paste a style example or describe the tone and filming setup you want. Dedicated creator workflows remain outside the current brand-brief slice."
+  },
+  "baseline": {
+    "status": "not_run",
+    "reason": "Await approved real briefs and user-supplied plain ChatGPT outputs/account access."
+  }
+}

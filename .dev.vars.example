@@ -1,0 +1,11 @@
+# Template only. Put actual development values in ignored .dev.vars.development.
+# Never copy a secret file or a local database URL from another workspace.
+# All seven bindings are required for authenticated mode. Empty/missing values keep
+# the default Worker diagnostic-only. See docs/engineering/auth-stage2.md.
+AUTH_ISSUER=
+AUTH_AUDIENCE=
+AUTH_CLIENT_ID=
+AUTH_CLIENT_SECRET=
+AUTH_SESSION_SECRET=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
