@@ -58,3 +58,12 @@ Wrangler downgrade as part of this UI prerequisite; track remediation separately
 
 Sources: [ext-apps v1.7.5](https://github.com/modelcontextprotocol/ext-apps/releases/tag/v1.7.5),
 published npm peer metadata, and [esbuild API](https://esbuild.github.io/api/).
+
+## Browser verification
+
+Worker and browser sources use separate TypeScript projects so Cloudflare's
+HTMLRewriter DOM names cannot override native browser APIs. `npm run typecheck`
+checks both projects. `npm test` discovers all nested TypeScript test suites;
+`npm run test:browser` discovers the browser `.test.mjs` suites. Both run in
+`npm run check`. Install Chromium with `npx playwright install chromium` locally;
+CI installs Chromium and its system dependencies before running checks.
