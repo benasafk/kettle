@@ -87,6 +87,7 @@ export async function handleWebsiteAuth(request: Request, config: AuthConfig, me
       const tx = txSchema.parse(await unseal(config, readCookie(request, TRANSACTION), 'oauth-transaction'));
       if (!await equalSecret(tx.state, url.searchParams.get('state') ?? '') || url.searchParams.has('error')
         || !url.searchParams.get('code') || url.searchParams.getAll('code').length !== 1 || url.searchParams.getAll('state').length !== 1
+        || url.searchParams.getAll('iss').length > 1
         || (metadata.authorization_response_iss_parameter_supported && url.searchParams.get('iss') !== config.issuer)
         || (url.searchParams.has('iss') && url.searchParams.get('iss') !== config.issuer)) throw new Error('Invalid callback');
       const tokens = await exchange(new URLSearchParams({ grant_type: 'authorization_code', code: url.searchParams.get('code')!,

@@ -37,7 +37,11 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
         description: name === 'save_project' ? 'Save a complete project brief in your Kettle account with version and request-ID checks.'
           : name === 'get_project' ? 'Reopen a saved project in your Kettle account.' : 'Read your Kettle account status.',
         inputSchema: contract.input,
-        outputSchema: contract.output,
+        // SDK 1.32 validates successful results as object schemas and skips
+        // validation for isError results. A discriminated union crashes its
+        // object normalizer. The application still validates the full v1 union;
+        // tools/list below publishes that unchanged union for clients.
+        outputSchema: contract.output.options[0],
         annotations: { readOnlyHint: contract.readOnly, destructiveHint: false, idempotentHint: true, openWorldHint: false },
         _meta: { securitySchemes: [{ type: 'oauth2', scopes: [contract.scope] }] },
       }, async (input: unknown) => {
