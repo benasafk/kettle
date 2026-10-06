@@ -1,5 +1,9 @@
 # Stage 1 decisions and open dependencies
 
+Latest status: the [Bangkok hosted update](stage2-verification.md#hosted-acceptance-update--bangkok-2026-10-06)
+records development deployment, hosted identity migration application, and user-reported
+website/ChatGPT acceptance. Earlier pending-hosted statements below are historical.
+
 ## Stage 2 follow-up, 2026-10-06
 
 See [Stage 2 evidence](stage2-verification.md) for current status; the original

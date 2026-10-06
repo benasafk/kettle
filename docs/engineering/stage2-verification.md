@@ -1,5 +1,65 @@
 # Stage 2 implementation and evidence — 2026-10-06
 
+## Hosted acceptance update — Bangkok, 2026-10-06
+
+This update supersedes the historical deployment/authentication blockers below.
+Stage 2 remains in progress: provider revocation and live generation evaluation
+are not complete. Earlier local and specialist reports retain their original scope.
+
+### Deployment and lead-observed evidence
+
+- Development origin: `https://kettle-stage2-development.g-baltramiejunas.workers.dev`.
+- Auth0 issuer: `https://kettle.eu.auth0.com/`; separate website and ChatGPT clients.
+- Worker code: `7db5b4c9818704d537184fadf297b0a6728be42c`, deployed version
+  `561bc669-5385-42e4-a021-ae611a2a921c`. PR #4 contains this runtime fix.
+- Hosted development Supabase migrations `20261006140000` and `20261006150000`
+  were verified applied during setup; the identity RPC rejected invalid input.
+- The lead observed successful health and protected-resource metadata responses,
+  an Auth0 S256 login redirect, anonymous MCP listing/diagnostic, and invalid-bearer
+  rejection after deployment. These checks alone do not establish user OAuth success.
+- Credentials remain in provider/Worker secret settings; no credential values are
+  included in this evidence. No production deployment or live provider calls occurred.
+
+### User-executed hosted checks
+
+The following results were reported by the user in the Bangkok conversation.
+They were not independently replayed by the lead with the user's credentials.
+
+| Check | Reported result and evidence strength |
+| --- | --- |
+| Website/ChatGPT identity | Successful login through both clients resolved to account A, `c4e83ed5-41e7-4fc8-b3b7-eca3f3312c5d`. Website reauthentication retained that ID. |
+| Persistence and versioned update | “Desk lamp test”, project `84c88837-a9d7-4b28-984e-c8c5db51d2ed`, was saved at version 1, reopened in another conversation, updated to version 2 with friendly/practical tone, and reopened with that version and tone. |
+| Second identity | Private-browser login returned account B, `4dbb320b-9a7c-4d8f-85ed-75498cb577d1`, distinct from A. An initial generic callback failure cleared after restarting sign-in; its cause was not established. |
+| Cross-account read | B's website API request for A's project returned the pasted JSON `NOT_FOUND`, “This project is unavailable.” No project content was returned. |
+| Website expiry and refresh | User pasted `UNAUTHENTICATED` after the instructed wait beyond the configured five-minute access lifetime, then confirmed refresh restored B without another login and the project request again returned `NOT_FOUND`. |
+| Website logout | User confirmed the account page rejected access after signing out. This establishes local logout, not provider-side revocation. |
+| Cross-account write | User reported step 1 passed: B could not modify A's project and A remained at version 2. No write request/response transcript was supplied; this is a reported pass, not an independently audited hosted write test. |
+| ChatGPT refresh continuity | User reported step 2 passed: after the instructed six-minute idle period, a new conversation retrieved version 2 without reconnection. No token-exchange trace was captured, so refresh-token rotation itself is not independently verified. |
+
+### PR #4 review and remaining limits
+
+Review found no blocking issue in the redirect change: all changed outbound calls use
+`manual`, and existing non-2xx guards reject redirects without forwarding credentials.
+The workerd smoke now constructs actual Requests for discovery and token exchange and
+checks that discovery rejects a 302. This addresses the runtime incompatibility that
+mock-only transports missed. See [Cloudflare Request documentation](https://developers.cloudflare.com/workers/runtime-apis/request/).
+
+On this review, a fresh `npm run check` passed (53 tests, TypeScript, dry-run Worker
+build, and workerd smoke), as did `git diff --check`. Existing PR CI for `7db5b4c`
+also passed. The acceptance documentation adds no runtime changes.
+
+Still open: controlled provider grant/refresh-token revocation; hosted local identity
+cutoff/block; provider-issued insufficient-scope denial; and retained request/response
+evidence for the reported hosted write-isolation check. Do not infer immediate global
+logout or invalidation of copied access tokens from the successful local logout test.
+
+Live generation/reference evaluation still requires credentials and permitted-use
+evidence. Authorized aggregate provider cap remains $25; no live provider calls or
+provider spend occurred in this lead session. The fixture Workflow does not establish
+full A44 job reconciliation, cancellation, or usage settlement.
+
+## Historical integration evidence
+
 PR review follow-up: fixed local logout when authorization-server discovery fails,
 while retaining same-origin POST checks and reporting remote revocation as unconfirmed.
 `npm run check` passed on Node 22.23.3 with 41 tests, TypeScript, bundle and workerd smoke.
