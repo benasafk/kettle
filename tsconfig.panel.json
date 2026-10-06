@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "apps/panel/**/*.ts",
+    "tests/panel/**/*.ts",
+    "tests/project-review-bridge.test.ts",
+    "packages/contracts/index.ts"
+  ],
+  "exclude": []
+}
