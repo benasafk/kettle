@@ -95,6 +95,9 @@ export class OpenAIGenerationProvider implements GenerationProvider {
         if (!o.budget.reserve(o.reserveUsdPerAttempt)) throw new GenerationError('BUDGET', attempts);
         reserved += o.reserveUsdPerAttempt;
         attempts++;
+        // A retry that fails before receiving headers has no HTTP status. Do not
+        // attribute the previous attempt's response to that network failure.
+        httpStatus = null;
         const abort = new AbortController();
         const timer = setTimeout(() => abort.abort(), timeout);
         let response: Response;
@@ -125,7 +128,6 @@ export class OpenAIGenerationProvider implements GenerationProvider {
           }
           throw new GenerationError(code, attempts);
         }
-        o.captureResponse?.(structuredClone(body));
         // Incomplete/refused outputs can still consume tokens. Preserve usage before
         // validating completion or the generated document.
         const usage = z.object({ usage: z.object({
@@ -135,6 +137,8 @@ export class OpenAIGenerationProvider implements GenerationProvider {
           inputTokens = usage.data.usage.input_tokens;
           outputTokens = usage.data.usage.output_tokens;
         }
+        // Preserve received usage even if the local evidence writer fails.
+        o.captureResponse?.(structuredClone(body));
         try {
           const envelope = z.object({ status: z.literal('completed'),
             output: z.array(z.object({ type: z.string(), content: z.array(z.object({ type: z.string(), text: z.string().optional() })).optional() })),
