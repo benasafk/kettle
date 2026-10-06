@@ -1,20 +1,20 @@
 # Auth0 development setup and hosted acceptance
 
 Prepared 2026-10-06 for Stage 2 A. These are instructions for the existing implementation,
-not evidence of a configured tenant or completed hosted OAuth. Auth0 remains provisional.
+not evidence of completed API/client configuration or hosted OAuth. Auth0 remains provisional.
 See [implementation](auth-stage2.md) and [Nagoya evidence](auth-nagoya-evidence.md).
 
-## Values to settle with the bangkok lead
+## Confirmed development target and Bangkok ownership
 
 | Value | Required value / current status |
 | --- | --- |
-| `DEV_ORIGIN` | One canonical HTTPS origin, no path or trailing slash; awaiting lead |
-| API identifier / `AUTH_AUDIENCE` | Exactly `DEV_ORIGIN/mcp`, no trailing slash |
-| Website callback | Exactly `DEV_ORIGIN/auth/callback` |
-| Auth0 issuer / `AUTH_ISSUER` | Discovery's exact issuer, including trailing slash; tenant not supplied |
+| `DEV_ORIGIN` | `https://kettle-stage2-development.g-baltramiejunas.workers.dev` (user-confirmed) |
+| API identifier / `AUTH_AUDIENCE` | `https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp` |
+| Website callback | `https://kettle-stage2-development.g-baltramiejunas.workers.dev/auth/callback` |
+| Auth0 issuer / `AUTH_ISSUER` | `https://kettle.eu.auth0.com/` (public discovery verified) |
 | ChatGPT callback | Copy from the actual MCP connection management screen; not yet observed |
-| Hosted database | Lead confirms intended development project and application of `20261006150000_identity_mapping.sql` |
-| Development Worker | Lead owns target, environment configuration, secret installation and deployment |
+| Hosted database | Bangkok applies `20261006150000_identity_mapping.sql`; user reports last verified not applied |
+| Development Worker | `kettle-stage2-development`, Wrangler environment `development`; Bangkok owns Kettle deployment and secrets. Public root currently returns `Hello World!` |
 
 Do not create the API identifier against a guessed hostname. Kettle rejects website
 and MCP requests on an origin different from `AUTH_AUDIENCE`. A preview URL or alternate
@@ -23,10 +23,11 @@ before deploying and record the deployed commit. Do not copy another workspace's
 
 ## 1. Tenant and fictional identities
 
-In Auth0, create a development tenant using only an available free option. Stop if
-the required settings require payment. Use its default tenant domain for this first
-proof; do not mix a custom-domain issuer with the default-domain login endpoints.
-Share only the public tenant domain with the engineer.
+Use the existing tenant **kettle.eu.auth0.com**. The user confirmed that **Kettle
+Development Website** already exists as a Regular Web Application, with callback,
+logout and origin settings empty; the Kettle API has not been created. Do not create
+a second tenant or website application. Keep the default tenant domain throughout
+this proof. No paid provisioning is authorized.
 
 Use one database connection for both clients below. Create fictional users A and B
 in that connection through the dashboard. Use the exact same user A record in the
@@ -42,11 +43,11 @@ the intended API audience. [Auth0 resource compatibility](https://support.auth0.
 
 ## 2. Kettle API
 
-In **Applications → APIs**, create `Kettle development` with:
+In **Applications → APIs**, create `Kettle Development` with:
 
 | Setting | Value for this implementation |
 | --- | --- |
-| Identifier | The lead-confirmed `DEV_ORIGIN/mcp` |
+| Identifier | `https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp` |
 | Signing algorithm | `RS256` |
 | Access-token profile | **Auth0**, which emits `azp`; the website verifier requires it |
 | Access-token encryption | Off; the verifier accepts signed JWTs, not encrypted access tokens |
@@ -74,12 +75,12 @@ and token scopes must still be checked. [API application access policies](https:
 
 ## 3. Website client
 
-Create **Applications → Applications → Create Application → Regular Web Application**,
-named `Kettle development website`.
+Open **Applications → Applications → Kettle Development Website**. Keep its existing
+Regular Web Application type and client identity; update these settings:
 
 | Setting | Value |
 | --- | --- |
-| Allowed Callback URLs | Only `DEV_ORIGIN/auth/callback` |
+| Allowed Callback URLs | `https://kettle-stage2-development.g-baltramiejunas.workers.dev/auth/callback` |
 | Credentials → Authentication Method | Client Secret (Post), i.e. `client_secret_post` |
 | Advanced Settings → Grant Types | Authorization Code and Refresh Token |
 | OIDC conformant | Enabled |
@@ -87,8 +88,8 @@ named `Kettle development website`.
 | Rotation overlap | 0 seconds for the sequential reuse test; record the actual setting |
 | Refresh expiration | Enable finite expiry; proposed test maximum 86,400 seconds, idle 3,600 seconds if available |
 | Connections | Enable the single fictional-user database connection |
-| Allowed Web Origins / CORS | No additions needed: exchanges run on the Worker |
-| Allowed Logout URLs | No additions needed: Kettle does not use Auth0's browser logout endpoint |
+| Allowed Web Origins / Allowed Origins (CORS) | Leave both empty: exchanges run on the Worker |
+| Allowed Logout URLs | Leave empty: Kettle does not use Auth0's browser logout endpoint |
 
 Kettle requests `openid offline_access account:read projects:read projects:write`,
 uses S256 PKCE, and binds the returned access token to this client's `azp`.
@@ -99,9 +100,10 @@ in the development Worker's settings. Never put the ChatGPT client's secret ther
 
 ## 4. Separate predefined ChatGPT client
 
-Use the actual custom MCP management screen with endpoint `DEV_ORIGIN/mcp` and the
+Use the actual custom MCP management screen with endpoint
+`https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp` and the
 mode supporting anonymous diagnostic plus OAuth-protected tools. Create a separate
-Auth0 application named `Kettle development ChatGPT`. For a host configuration accepting
+Auth0 application named `Kettle Development ChatGPT`. For a host configuration accepting
 a predefined confidential client ID and secret, use **Regular Web Application**,
 **Client Secret (Post)**, Authorization Code + Refresh Token, and the same rotation
 and connection settings as above. Enter those credentials only in the host's OAuth
@@ -117,7 +119,9 @@ credentials. [OpenAI OAuth configuration and callback rules](https://developers.
 
 ## 5. Discovery and server settings
 
-The public `https://TENANT_DOMAIN/.well-known/openid-configuration` must contain:
+Public discovery at `https://kettle.eu.auth0.com/.well-known/openid-configuration`
+was fetched successfully on 2026-10-06. Its selected public fields are recorded in
+[evidence](evidence/auth0-public-discovery-20261006.json). It meets these requirements:
 
 - Exact `issuer` matching `AUTH_ISSUER`, including the trailing slash.
 - `jwks_uri`, `authorization_endpoint`, `token_endpoint`, `revocation_endpoint`:
@@ -131,9 +135,24 @@ Save only sanitized public discovery metadata and pass/fail notes. A metadata pa
 does not prove this application's credentials or grant types work. Report an actual
 tenant mismatch rather than patching discovery or loosening JWT checks.
 
-The lead installs all seven variables in the intended development Worker:
-`AUTH_ISSUER`, `AUTH_AUDIENCE`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`,
-`AUTH_SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+Bangkok installs these **seven secrets** in Worker **kettle-stage2-development**,
+Wrangler environment **development**. The existing `wrangler.jsonc` already requires
+these names; this branch does not change the shared runtime configuration. The first
+two values below are public identifiers, even though the current manifest stores them
+as secrets.
+
+| Worker secret name | Exact value or private source |
+| --- | --- |
+| `AUTH_ISSUER` | `https://kettle.eu.auth0.com/` |
+| `AUTH_AUDIENCE` | `https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp` |
+| `AUTH_CLIENT_ID` | Existing **Kettle Development Website** application's client ID |
+| `AUTH_CLIENT_SECRET` | That website application's client secret, transferred privately |
+| `AUTH_SESSION_SECRET` | Newly generated 64-character hexadecimal secret, unique to development |
+| `SUPABASE_URL` | Bangkok's approved hosted development project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | That same project's server-only service-role credential |
+
+The separate ChatGPT client ID/secret belong in ChatGPT's connection settings only.
+Do not install them as `AUTH_CLIENT_ID` / `AUTH_CLIENT_SECRET`.
 Generate the session secret locally as 32 random bytes encoded into 64 hex characters;
 transfer directly into the secret store without printing it to chat or committing it.
 Database credentials remain server-only. No tenant or database secret belongs in the
@@ -191,6 +210,6 @@ Advanced; Auth0 documents different revocation scopes depending on settings and 
 For the bounded test, leave it off and record the actual outcome rather than promising
 one-device-only logout. [Auth0 refresh revocation](https://auth0.com/docs/secure/tokens/refresh-tokens/revoke-refresh-tokens).
 
-Missing tenant, public origin, hosted migration, deployment, or host access leaves
+Incomplete API/client configuration, hosted migration, deployment, or host access leaves
 the corresponding tests **blocked**, not passed by local fixtures. No production
 deployment, purchase, public listing or live generation is part of this run.

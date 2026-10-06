@@ -74,6 +74,7 @@ test('website PKCE callback requires cookie-bound state and issuer, seals creden
   const headers = { cookie: cookieHeader(f.login) };
   assert.equal((await f.call(f.callback.replace('state=', 'state=wrong'), { headers })).status, 401);
   assert.equal((await f.call(f.callback.replace(encodeURIComponent(config.issuer), 'https%3A%2F%2Fevil.example%2F'), { headers })).status, 401);
+  assert.equal((await f.call(f.callback.split('&iss=')[0]!, { headers })).status, 401, 'advertised issuer identification requires iss');
   for (const duplicate of ['iss=https%3A%2F%2Fevil.example%2F', `iss=${encodeURIComponent(config.issuer)}`, 'code=second-code', 'state=second-state']) {
     assert.equal((await f.call(`${f.callback}&${duplicate}`, { headers })).status, 401);
   }
