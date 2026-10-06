@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    U->>C: Undo or inspect revision history
+    C->>K: List versions for selected script
+    K->>D: Read owned history
+    K-->>C: Version summaries and current ID
+    C-->>U: Show previous and current versions
+    U->>C: Choose version to restore
+    C->>K: Restore with expected current version
+    alt Expected version is still current
+        K->>D: Append restored content as new revision
+        K-->>C: New current version; history intact
+        C-->>U: Show restored script
+    else Another chat saved newer content
+        K-->>C: Conflict; newest version preserved
+        C->>K: Read newest content and chosen version
+        K-->>C: Both versions
+        C-->>U: Explain difference and intended change
+        U->>C: Choose how to proceed
+        C->>K: Resubmit against refreshed version
+        Note over U,D: Continue: Recheck version before applying any change
+    end

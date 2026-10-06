@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant J as Job runner
+    participant D as Database
+    U->>C: Filter, refine, or change direction
+    C->>C: Resolve intent and visible idea IDs
+    opt Selection is stale or ambiguous
+        C->>K: Refresh saved result and order
+        K-->>C: Current result IDs
+        C-->>U: Clarify the intended item if needed
+    end
+    alt Existing cards satisfy the request
+        C->>C: Filter the loaded result
+        C-->>U: Show matches or clear-filter option
+    else User requests new references
+        C->>K: Start refinement with brief and result IDs
+        K->>K: Check entitlement and deduplicate
+        K->>J: Enqueue new search
+        K-->>C: Job ID; prior cards remain
+        J->>D: Save next result or failure
+        C->>K: Read completed outcome
+        K-->>C: New result version or recovery
+        C-->>U: Present new choices
+    else Same idea; change only the script
+        Note over U,D: Continue: Continue through F13 without reference search
+    end

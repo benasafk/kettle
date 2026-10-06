@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant J as Job runner
+    U->>C: Request a context change
+    C-->>U: Resolve one-script versus project scope
+    alt Change applies to one script
+        Note over U,J: Continue: Revise the selected script through F13
+    else Change applies to the project
+        C->>K: Read current brief and version
+        K-->>C: Current fields and linked work
+        C->>K: Save changed fields and sources
+        K->>D: Append brief version
+        K-->>C: New version; prior work retained
+        C-->>U: Offer revision or new discovery
+        opt User requests new generation
+            C->>K: Start job with new brief version
+            K->>J: Enqueue authorized work
+            K-->>C: Job ID
+        end
+        opt Older job completes later
+            J->>D: Save result under its original brief
+            Note over U,J: Older completion cannot replace newer active work.
+        end
+    end

@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant J as Job runner
+    participant M as Model API
+    U->>C: Share an idea and request a script
+    C-->>U: Clarify only essential context
+    U->>C: Provide facts and filming constraints
+    C->>K: Save project and user-origin idea
+    K->>D: Persist idea and brief version
+    K-->>C: Idea ID
+    C->>K: Generate script for the idea
+    K->>K: Check access and reserve usage
+    K->>J: Enqueue one writing job
+    K-->>C: Job ID
+    J->>M: Draft with brief and constraints
+    M-->>J: Structured script candidate
+    alt Output checks pass
+        J->>D: Save script and settle job
+        C->>K: Retrieve completed script
+        K-->>C: Script and source limitations
+        C-->>U: Open Studio or export
+    else Writing or checks fail
+        J->>D: Record recoverable failure
+        C->>K: Read job outcome
+        K-->>C: Failure; previous work preserved
+        C-->>U: Correct input or retry
+    end

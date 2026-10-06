@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant J as Job runner
+    U->>C: Compare ideas and inspect sources
+    C->>K: Get saved result and ordered idea IDs
+    K->>D: Read owned result
+    K-->>C: Ideas, rationale and permitted source links
+    C-->>U: Show choices; label missing previews
+    opt User opens an original
+        U->>C: Open source link
+        C-->>U: Use supported external link opener
+    end
+    U->>C: Use this idea
+    C->>K: Get or generate selected script
+    alt Matching script is already ready
+        K->>D: Read ready script
+        K-->>C: Script and current version
+        C-->>U: Open Studio
+    else Script needs generation
+        K->>J: Start authorized writing job
+        K-->>C: Job ID; current script preserved
+        J->>D: Save new script or failure
+        C->>K: Read job outcome
+        K-->>C: Ready script or failure details
+        C-->>U: Open ready script or keep current
+    end

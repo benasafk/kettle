@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant H as Support
+    U->>C: Ask a question or report a problem
+    alt General product help
+        C->>C: Use supported product guidance
+        C-->>U: Explain steps or known limitation
+    else Account, billing, job or script issue
+        C->>K: Read relevant owned state if needed
+        K->>D: Retrieve bounded diagnostic context
+        K-->>C: Useful status and safe identifiers
+        C-->>U: Explain known recovery or reporting option
+        opt User chooses to submit feedback or support request
+            U->>C: Submit intended report and context
+            C->>K: Record authorized feedback/report
+            K->>D: Save report and associated record IDs
+            K->>H: Route only intended support context
+            H-->>K: Accepted report or actual failure
+            K-->>C: Report ID or retry instructions
+            C-->>U: Show truthful acknowledgement
+        end
+    end

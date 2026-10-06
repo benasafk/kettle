@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    U->>C: Open Kettle
+    C->>K: Read account, projects and recent jobs
+    K->>D: Read owned records
+    D-->>K: Current work or empty state
+    K-->>C: Return usable summaries
+    alt No prior work
+        C-->>U: Brief introduction and starting options
+        U->>C: Bring a brief, idea or script
+        Note over U,D: Continue: Continue to F05, F07 or F08 as supported
+    else Returning user
+        C-->>U: Offer projects, saved work and jobs
+        U->>C: Choose an item or start new
+        C->>K: Get selected current state
+        K->>D: Read owned item and version
+        D-->>K: Latest saved state
+        K-->>C: Selected work
+        C-->>U: Resume without repeating the brief
+    end

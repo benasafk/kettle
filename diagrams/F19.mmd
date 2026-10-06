@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant M as Model API
+    U->>C: Browse hooks, showcases or calls to action
+    C->>K: Search permitted library for project
+    K->>D: Read eligible library records
+    K-->>C: Matching parts or empty state
+    C-->>U: Show choices or broaden-filter action
+    opt User chooses a part
+        U->>C: Choose part and target script
+        C->>K: Adapt selected part to current script
+        K->>D: Read permitted source and base version
+        K->>M: Draft project-specific replacement
+        alt Adaptation succeeds and checks pass
+            M-->>K: Replacement candidate
+            K->>D: Store candidate; keep script current
+            K-->>C: Permitted original and your version
+            C-->>U: Preview replacement in context
+            opt User accepts
+                U->>C: Use this part
+                C->>K: Accept with expected base version
+                K->>D: Append revision if version still matches
+                K-->>C: Saved revision or version conflict
+                C-->>U: Return to Studio or resolve conflict
+            end
+        else Adaptation fails
+            K-->>C: Useful failure; current script unchanged
+            C-->>U: Try another part or keep script
+        end
+    end

@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant A as Identity provider
+    participant K as Kettle backend
+    participant D as Database
+    U->>C: Select Kettle and request a task
+    C->>K: Attempt protected operation
+    K-->>C: Connection required; no write
+    C->>A: Open supported authorization
+    U->>A: Sign in or create account
+    alt User grants access
+        A-->>C: Authorization code
+        C->>A: Exchange code using PKCE
+        A-->>C: Access token
+        C->>K: Read account with token
+        K->>D: Resolve authorized account
+        D-->>K: Account and entitlements
+        K-->>C: Permitted actions
+        C-->>U: Resume original request
+    else User declines or leaves
+        A-->>C: Authorization not completed
+        C-->>U: Explain how to connect later
+    end

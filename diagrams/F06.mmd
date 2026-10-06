@@ -1,0 +1,26 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant J as Job runner
+    U->>C: Describe creator or founder goal
+    alt Creator project
+        C-->>U: Ask niche, audience and usual style
+        U->>C: Describe style or provide examples
+    else Founder project
+        C-->>U: Ask the essential story question
+        U->>C: Supply personal facts and constraints
+    end
+    C->>K: Save type, brief and fact origins
+    K->>D: Persist sourced brief version
+    K-->>C: Project ready
+    U->>C: Request ideas or a script
+    C->>K: Start authorized generation
+    K->>J: Run with type and constraints
+    K-->>C: Job ID
+    J->>D: Save checked result or placeholders
+    C->>K: Read completed result
+    K-->>C: Relevant ideas and script
+    C-->>U: Review; fill missing personal facts

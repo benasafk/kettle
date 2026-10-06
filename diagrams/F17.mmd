@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    alt Save for later
+        U->>C: Save this piece
+        C->>K: Save Vault item with request ID
+        K->>D: Upsert one saved association
+        K-->>C: Stable Vault item ID
+        C-->>U: Saved; offer Undo save
+        opt Undo save
+            U->>C: Unsave
+            C->>K: Remove saved association
+            K->>D: Preserve script and history
+            C-->>U: Piece removed from saved list
+        end
+    else Browse or resume
+        U->>C: Show my saved work
+        C->>K: List by project or status
+        K->>D: Read owned Vault items
+        K-->>C: Items or empty state
+        C-->>U: Show list or useful start action
+        opt User chooses a saved item
+            U->>C: Open selected piece
+            C->>K: Get item and current script
+            K->>D: Read latest selected variant revision
+            K-->>C: Saved script and project context
+            C-->>U: Resume Studio
+        end
+    end

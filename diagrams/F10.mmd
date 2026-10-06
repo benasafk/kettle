@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant J as Job runner
+    participant R as Reference source
+    participant M as Model API
+    participant D as Database
+    U->>C: Find my next video
+    C->>K: Start discovery with brief version
+    K->>K: Check access; deduplicate; reserve usage
+    K->>J: Enqueue durable discovery job
+    K-->>C: Job ID and queued state
+    C-->>U: Show progress and return path
+    J->>R: Search permitted references
+    R-->>J: References and available source data
+    alt Enough relevant source material
+        J->>M: Rank ideas and draft top script
+        M-->>J: Structured ideas and script
+        J->>J: Check structure and factual support
+        J->>D: Save result version and job outcome
+    else Few or no relevant matches
+        J->>D: Save fewer results or no-match
+    else Provider or writing failure
+        J->>D: Save recoverable failure; retain old work
+    end
+    C->>K: Read status when panel polls or user asks
+    K->>D: Read authorized job and result
+    D-->>K: Actual saved outcome
+    K-->>C: Ideas, script or useful limitation
+    C-->>U: Show outcome and next action

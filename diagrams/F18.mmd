@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    participant J as Job runner
+    U->>C: Choose a project
+    C->>K: List owned projects
+    K-->>C: Project summaries
+    U->>C: Select project or create a new one
+    C->>K: Load or create the intended project
+    K->>D: Read or save project context
+    K-->>C: Active brief and work IDs
+    C-->>U: Show active project
+    opt Later project management
+        U->>C: Request rename, archive, restore or delete
+        alt Rename, archive or restore
+            C->>K: Apply explicit lifecycle update
+            K->>D: Update label or reversible state
+            C-->>U: Show new project state
+        else Delete project
+            C->>K: Preview deletion impact
+            K-->>C: Affected records and running jobs
+            C-->>U: Explain impact and request confirmation
+            U->>C: Explicitly confirm deletion
+            C->>K: Submit confirmed deletion
+            K->>D: Mark deleting; block new writes
+            K->>J: Stop future work under adopted policy
+            K->>D: Delete or retain per policy
+            C-->>U: Show truthful deletion status
+        end
+    end

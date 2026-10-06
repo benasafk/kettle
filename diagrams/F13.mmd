@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    U->>C: Request edit or suggested improvement
+    C->>K: Get selected script and brief facts
+    K->>D: Read owned current version
+    K-->>C: Script, facts and base version
+    C->>C: Draft lines, shots and timing changes
+    alt Explicit command to apply change
+        C->>K: Save revision with expected version
+        Note over U,D: Continue: Apply common version and content checks below
+    else Suggestion or comparison
+        C->>K: Store checked candidate only
+        K->>D: Preserve current; save candidate
+        C-->>U: Show Keep mine / Use new
+        alt Keep mine
+            C-->>U: Current script stays active
+        else Use new
+            U->>C: Accept candidate
+            C->>K: Accept against expected current version
+        end
+    end
+    opt A save or acceptance was requested
+        alt Version matches and checks pass
+            K->>D: Append revision; update current pointer
+            K-->>C: Saved version and estimated timing
+            C-->>U: Show revision with undo
+        else Version conflict or unsupported claim
+            K-->>C: Conflict or validation details
+            C-->>U: Refresh, clarify facts, or revise candidate
+        end
+    end

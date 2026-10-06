@@ -1,0 +1,284 @@
+# Kettle product jobs
+
+Oct 5, 2026 · @Gustas
+
+## How to read this
+
+Every job goes to whoever can do it best at the lowest cost and risk. ChatGPT does the talking and thinking it already does, Kettle's server does what ChatGPT can't, and people do what needs judgement or a signature. Each section below lists the jobs for one area of the product. Frame names in brackets, such as (2B), point to the Paper design.
+
+**The rule behind every "who":**
+
+- **ChatGPT, guided by Kettle's skills, handles the conversation:** understanding what people bring, asking questions and making small rewrites. It's already in the chat, and the user's ChatGPT plan pays for it.
+- **Kettle's server handles what ChatGPT can't:** live video data, memory across chats, work that takes minutes, rules that must always hold, identity and money.
+- **The panel appears only where people compare, choose or work through a long structured result.** Everything else stays in chat, so Kettle works without the panel too.
+- **Specialist services each do their one thing:** Auth0 for sign-in, Stripe for payments, Supabase for storage, Lightreel for references. Kettle buys these rather than building them.
+- **People handle what needs judgement or a signature:** rights deals, legal policies, support and pricing.
+- **Money never moves inside ChatGPT.** OpenAI's rules forbid selling subscriptions or credits in a plugin, so all selling happens on Kettle's website.
+
+**Who's who:**
+
+| Who | What it is | Typical jobs |
+| --- | --- | --- |
+| ChatGPT | The model in the user's chat, guided by Kettle's skills | Understanding input, clarifying questions, chat edits, summaries |
+| ChatGPT app | ChatGPT's own features around a plugin | Account linking screen, conversation panel, sidebar entry, first-launch guide, opening links |
+| Panel | Kettle's screens inside ChatGPT (2A, 2B, Studio, Explore, Vault) | Showing, comparing, choosing |
+| Kettle server | Kettle's tools and rules, hosted on Cloud Run | Checking, storing, enforcing limits and rules |
+| Worker | Kettle's background jobs | Anything that takes longer than a second |
+| Reference provider | Lightreel today, replaceable behind one interface | Finding videos and their numbers |
+| OpenAI API | Kettle's own model calls, paid by Kettle | Writing that must finish while the user isn't in the chat |
+| Auth0 | Sign-in service | Accounts, passwords, access tokens |
+| Supabase | Database | Storing everything Kettle keeps |
+| Stripe | Payments | Subscriptions, invoices, tax |
+| Kettle website | Kettle's own site | Selling, account settings, legal pages, help |
+| Kettle team | The people running Kettle | Contracts, policies, support, review submissions, pricing |
+| OpenAI | The platform owner | Plugin review and the plugin directory |
+
+## The three actions that matter most
+
+Three user actions decide whether Kettle succeeds: choosing an idea, getting the script out to film it, and refining in chat. Each diagram below shows who does what for that action in the full product. Calls from the panel pass through ChatGPT's bridge to Kettle's server, but they're drawn as direct arrows for readability.
+
+### 1. Choose an idea to film
+
+&#91;embedded content: Choose an idea to film · UML sequence, 6 participants\]
+
+Accepting the top pick skips straight to Open in Studio. If writing fails, version 4 keeps the previous script with an error note. Logging the pick gives Kettle its pick rate, the first sign that references and scripts land.
+
+### 2. Get the script out and film it
+
+&#91;embedded content: Get the script out and film it · UML sequence, 4 participants\]
+
+Plain text in chat always works. Copy in the panel depends on whether the browser allows it. Recording the filmed date gives Kettle its filmed rate, the truest measure of value.
+
+### 3. Refine in chat
+
+&#91;embedded content: Refine in chat · UML sequence, 6 participants\]
+
+ChatGPT knows which video is #2 because the panel shares what's on screen. Each refinement is a paid Lightreel search, counted separately from the $0.90 ceiling. Check 5 passes when new alternatives appear within 5 seconds of version 6 being ready.
+
+## Start and understand
+
+Almost everything here is conversation, so ChatGPT does it. Kettle's server only stores the result and remembers people between chats.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Introduce Kettle on first use (1A) | ChatGPT app's first-launch guide, written as a Kettle skill | OpenAI provides a plugin onboarding feature, so Kettle doesn't build an intro screen, and it works on every device. |
+| Recognise a returning user and offer to resume (1.0, 1B) | Kettle server finds the account and last project, ChatGPT says it | ChatGPT keeps no Kettle data between chats; the linked account does. |
+| Work out what someone brought: a website, a description, a TikTok link, a profile or a personal story (1D, 1E) | ChatGPT, guided by a skill | It's already reading the message, and sorting input is language work that needs no tool call. |
+| Ask which product a pasted TikTok is for (1D) | ChatGPT | A clarifying question belongs in chat. |
+| Handle an unfinished or broken link (1F) | ChatGPT | It can ask in the same sentence it noticed the problem. |
+| Understand the product from its website | ChatGPT, from what the user pastes or what its own web search returns. Kettle never fetches pages | Kettle fetching sites risks breaking OpenAI's rule against scraping, and ChatGPT already has the context. |
+| Turn that understanding into project details: name, what it is, audience, tone, goal (1.5A) | ChatGPT fills the fields; Kettle server checks and stores them | Extraction is language work. Storage and validation must be consistent. |
+| Show the project review (1.5B) | ChatGPT, as a short summary in chat | It's a confirmation, not a comparison, so it doesn't need the panel. An inline card can come later if people miss fields. |
+| Correct the review in chat (1.5C) | ChatGPT updates; Kettle server saves | Corrections are natural in chat, and the server keeps the record. |
+| Ask about the goal, only if unclear | ChatGPT, following the skill's rule | The design says ask only when essential, and that is a judgement made in conversation. |
+| Ask whose profile a link is, only if unclear | ChatGPT, following the skill's rule | Same reason. |
+| Ask a founder one question about their story before the first run (2B·F-2) | ChatGPT asks; Kettle server stores the answer and marks it "from you" | Founder scripts may only use facts the founder gave, so every fact needs a recorded source. |
+| Understand a creator's niche and style from their account (2B·C) | Undecided, see decision D7. Safe today: ChatGPT asks the creator to describe their content | Kettle can't scrape TikTok or Instagram. A creator could later sign in with their own account through TikTok's official login. |
+| Decide whether this is a brand, creator or founder project | ChatGPT classifies; Kettle server stores the type | The type sets the script structure later: Hook / Showcase / Call to action for brands, Hook / Main content / Call to action for creators and founders. |
+| Pick between several projects (1B.2) | Kettle server lists them, ChatGPT asks which | The list lives on the server; the choice is conversation. |
+| Write in the user's language | ChatGPT in chat; Kettle server passes the user's language to background writing | ChatGPT sends the user's language with each tool call, so background scripts can match it. |
+
+## Discover (2B)
+
+This is where Kettle earns its price, so most jobs sit on Kettle's server and run in the background. ChatGPT can't wait the minutes a reference search takes, and it can't be told when one finishes in a normal chat.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Find reference videos that match a project | Reference provider (Lightreel), called by the Worker | ChatGPT has no current, indexed short-video data. Searches take minutes, so they run in the background. |
+| Turn a project into a provider search | Kettle server, with a versioned query builder | Searches must be consistent, testable and cost-controlled, not improvised each time. |
+| Store each reference in one standard shape: link, platform, creator, numbers, date observed, source | Kettle server | The rest of Kettle never depends on one provider, so a provider can be swapped. |
+| Check that links open and posters load | Worker | Broken links ruin trust. Checking before showing costs seconds, not credits. |
+| Get poster images legally | The provider's own field, or the platform's official embed data. Kettle never copies or stores images | Copying thumbnails is republishing third-party content. |
+| Work out "× usual" performance | Reference provider, if it supplies the creator's typical views. Otherwise the figure is left out | 2B's own rule: show only source-backed numbers, never estimates. |
+| Choose the top pick and the 7 alternatives | Worker, using OpenAI API for judgement and Kettle server rules for limits | It must be done before the user looks, so it can't wait for ChatGPT. Fixed rules keep it consistent. |
+| Tag each alternative with a style, such as Product demos or Before / after | Worker, using OpenAI API and a fixed tag list | A fixed list makes the chips stable and filterable. |
+| Write the top pick's script: three parts with timings, spoken lines and filming directions | Worker, using OpenAI API | The script must be ready when 2B appears, which is minutes after the request. |
+| Write "Why this format fits" | Worker, in the same OpenAI API call | Same reason, and one call costs less than two. |
+| Catch invented facts: numbers, customers or dates not in the brief | Kettle server check | Written instructions can be ignored. A check on the server can't. |
+| Show progress while preparing (2A) | Panel, from the job's real steps | Real steps are honest. A made-up progress bar isn't. |
+| Show 2B | Panel | People compare 8 options and choose, which is exactly what OpenAI says a panel is for. |
+| Describe the result in chat for people who don't open the panel | ChatGPT, from the tool's structured result | OpenAI requires tools to stay useful without UI. |
+| Filter alternatives by style chip | Panel, on the device | Instant and free, because the data is already there. |
+| Refine through chat: "funny product demos", "trending 3 months ago", "more like the second one" | ChatGPT turns the words into a refine request; the Worker and provider fetch | Chat is the search box. OpenAI's rules discourage a second text input. |
+| Tell ChatGPT what's on screen | Panel, through ChatGPT's model context | So "more like this one" works without naming the video. |
+| Use this idea: write that alternative's script (2D) | Worker, using OpenAI API | It runs in the background and should match the first script's quality. |
+| Keep the current script until a new one succeeds | Kettle server, with numbered feed versions | Nothing the user had disappears because of a failure. |
+| Decide there's no strong match (2E) | Worker, against a threshold; ChatGPT offers a wider angle | The threshold is a rule. Suggesting a new direction is conversation. |
+| Recover from a failed run (2F) | Kettle server keeps the last good version; panel offers Try again | Failures cost the user a click, not their work. |
+| Show a missing preview (2G) | Panel, with a plain placeholder and View original | The script stays usable without the picture. |
+| Open the original video | Panel, through ChatGPT's external link opener | Embedding TikTok or Instagram players needs extra OpenAI review and isn't essential. |
+| Avoid paying twice for the same search | Kettle server, with a short-lived cache, within the provider's terms | Refinements and repeat runs would otherwise spend credits on the same results. |
+| Find "founders like you" references (2B·F) | Reference provider, then Worker filters for videos one person can film alone | The design asks for talking-to-camera, one-take formats. |
+| Find "trending videos for your style" for creators (2B·C) | Reference provider, then Worker matches the creator's stated niche | Same pipeline, different filter. |
+
+## Studio
+
+In Studio, ChatGPT does the rewriting and Kettle's server keeps versions, timing and rules. Edits made in chat cost Kettle nothing per edit.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Show the complete filming guide (3A) | Panel, full screen | A long, structured script with parts and shots needs room. |
+| Edit a line from chat, such as "make the hook punchier" (3C) | ChatGPT rewrites; Kettle server checks the result and saves a new version | ChatGPT is already in the chat and paid for. The server still rejects a broken structure or an invented number. |
+| Offer Keep mine or Use new (3D) | Panel shows both; Kettle server keeps both versions | The choice is visual. The record must survive the chat. |
+| Undo (3E, 2B·F-1) | Kettle server, by restoring the previous version | Undo only works if every version is kept. |
+| Estimate how long each line takes to say | Kettle server, from words per second for the language | It's arithmetic, so it should give the same answer every time. |
+| Shorten a script to a target length, such as 22 s to 15 s (3B) | ChatGPT rewrites; Kettle server measures and confirms the new length | Rewriting is language work. Measuring is arithmetic. |
+| Make a no-talking or no-face version (3F, 2B·F-3) | ChatGPT rewrites, following the skill's rules; Kettle server saves it as a variant | The skill holds the on-screen-text conventions. The server keeps the variant linked to the original. |
+| Fill the gaps marked \[ \] in founder scripts (2B·F-1) | ChatGPT asks; Kettle server records the fact and its source | A gap is a fact only the founder knows, and the source must stay attached. |
+| Show the shot storyboard (3H) | Panel, drawn from the shot list | The shot list is data. The pictograms are presentation. |
+| Write the shot list | Worker with the first script; ChatGPT for later edits | It's needed as soon as Studio opens, and it changes when lines change. |
+| Get the script out of Kettle (review item R09) | ChatGPT posts the final script as plain text; the panel offers Copy where the browser allows it | Copying from inside ChatGPT's panel may be blocked, but text in chat always works. |
+| Show which reference each part came from, such as "0–3 s from @creator" | Kettle server, only when the provider gives timestamps | No timestamp means no claim. |
+| Swap one part for one from a library | Panel starts it; Kettle server saves a new version | Links Studio to Explore without losing the old version. |
+| Mark a video as filmed ("I filmed it") | Panel or ChatGPT; Kettle server sets the Vault status | The status must hold across chats and devices. |
+
+## Explore
+
+The part libraries depend on storing pieces of other people's videos, so the rights decision comes before any build. Once rights are clear, the Worker prepares libraries ahead of time and the panel only displays them.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Secure the right to store and show parts of reference videos | Kettle team, in the provider contract | Hook, showcase and call-to-action libraries hold excerpts of third-party content. Lightreel's terms don't grant reuse. |
+| Split references into hooks, showcases and calls to action, with timestamps | Worker, using OpenAI API on transcripts the provider is allowed to share | It's slow, repeatable and the same for every user, so it should run once and be stored. |
+| Store the libraries | Supabase | Every user reads the same library, so it's built once. |
+| Rank the parts that fit the current project (4F "Fits" row) | Kettle server, from precomputed similarity | It must appear instantly when the library opens. |
+| Show the hook, showcase and call-to-action libraries (4C, 4D, 4E) | Panel | Browsing many short options side by side is visual. |
+| Open a pick: the original next to your version (4B) | Panel shows both; Kettle server writes "your version" using OpenAI API | It's a panel action, so the result belongs in the panel, not posted into the chat. |
+| Use this hook, showcase or call to action | Kettle server saves a new script version | One part changes and the old version stays. |
+| Filter a library (4M) | Panel, on the device | Instant and free. |
+| Ask for parts in chat, such as "hooks that open with a question" (4I) | ChatGPT calls a library search tool | Chat is the search box. |
+| Show empty and failed states (4K, 4L) | Panel, with a next step | Every dead end needs a way out. |
+| Library home (4A) | Undecided, see decision D5 | It's referenced in the design but never drawn. |
+
+## Vault and projects
+
+The Vault is Kettle's memory, so Kettle's server owns it. ChatGPT's sidebar gives people a way back in without starting a new chat.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Save a complete piece: the reference and its script together (2C) | Kettle server; saving twice does nothing new | A save must survive the chat and never duplicate. |
+| Undo a save (2C) | Kettle server | The design offers Undo right after saving. |
+| Move a piece from Saved for later to Filmed | Kettle server, triggered from the panel or chat | Status is account data and must match on every device. |
+| Resume a saved piece in Studio from any chat | Kettle server, keyed to the linked account | ChatGPT doesn't carry data between chats. Kettle's account does. |
+| List saved pieces in chat ("what did I save?") | ChatGPT, through a Vault tool | A quick answer in chat, no panel needed. |
+| Open Kettle from ChatGPT's sidebar | ChatGPT app's sidebar entry, opening the panel on the Vault | People can come back without typing a prompt. |
+| Show the project home (P1, P2) | Panel | It's an overview of saved, filmed and in-progress work. |
+| Rename, archive or delete a project or creator account (P4) | Kettle server, from the panel or chat, with confirmation before deleting | Deleting is permanent, so it needs a clear confirm. |
+| Keep each project's tone, audience and goal for future runs | Kettle server | Every new run starts from what Kettle already knows. |
+| Show what's new since last time, such as fresh references for a saved style | Worker, on a schedule; shown when the user next opens Kettle | ChatGPT can't message people unprompted outside Work chats, so news waits for the next visit. |
+
+## Accounts, plans and billing
+
+All selling happens on Kettle's website, and the plugin only serves people who already have an account. OpenAI's plugin guidelines forbid selling digital subscriptions or credits in a plugin, and they count freemium as selling.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Create a Kettle account | Auth0, from Kettle's website or the first ChatGPT link | Auth0 handles passwords, social sign-in and two-step login, so Kettle never stores passwords. |
+| Link ChatGPT to the Kettle account | ChatGPT app and Auth0, using the standard secure sign-in flow (OAuth with PKCE) | ChatGPT requires this flow for plugins with accounts. |
+| Check the access token on every call | Kettle server | OpenAI requires full token checks on every request. |
+| Show plans and prices, and handle upgrades | Kettle website only | Showing plans, promoting upgrades or linking to checkout inside a plugin is not allowed. |
+| Take payment and run the $49 a month subscription | Stripe Checkout and Stripe's billing portal, on the website | Stripe handles cards, retries, receipts and cancellation. |
+| Keep each account's plan in sync | Kettle server, from Stripe's webhook messages | The server must know who has paid, at the moment they call a tool. |
+| Enforce monthly usage limits, such as runs and refinements | Kettle server | Protects the $0.90 per 2B cost ceiling and the planned \~10 runs per user each month. |
+| Tell someone they've reached a limit | ChatGPT, stating the fact and the reset date, with no upgrade prompt | A neutral status is fine. Promoting an upgrade inside the plugin isn't. |
+| Offer any free trial | Kettle website, before the person links ChatGPT | A free tier inside the plugin would count as selling under OpenAI's rules. |
+| Charge EU VAT and issue invoices | Stripe Tax and Stripe invoices | Digital services sold to EU customers need VAT handled per country. |
+| Handle refunds and billing questions | Kettle team, using Stripe's dashboard | Refunds need a person's judgement. |
+| Give OpenAI's reviewers a working demo account | Kettle team, with Auth0 | Review requires logging in with no extra setup. |
+| Disconnect ChatGPT from an account | ChatGPT app, plus a "connected apps" setting on Kettle's website | People should be able to cut the link from either side. |
+
+## Trust, rights and safety
+
+The biggest risk to Kettle is legal, not technical: written permission to use reference content commercially is the gate before launch. The rest splits between rules the server enforces and policies the team owns.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Get written permission to use reference links, numbers and posters commercially | Kettle team, with a lawyer, in the provider contract | Lightreel's terms say access to third-party content doesn't grant permission to reuse it. |
+| Credit every reference: creator, platform, link (decision D6) | Panel shows it; Kettle server stores it | Creators get credit, users can check the source, and it supports the rights position. |
+| Show only numbers that came from a source, with the date they were observed | Kettle server stores them; the skill forbids ChatGPT to invent any | 2B's notes require source-backed views and never invented results. |
+| Keep invented facts about the user's business out of scripts | Kettle server check, plus the skill's rule | Instructions alone can be ignored. A server check can't. |
+| Adapt a format without copying a creator's script word for word | Worker writing rules, plus a similarity check on the server | Reusing a format is fine. Copying someone's words is not. |
+| Refuse harmful or deceptive scripts, such as fake reviews or false health claims | ChatGPT's own safety rules, the skill's rules, and OpenAI's moderation check on Kettle's background writing | Three layers, because background writing never passes through ChatGPT's own checks. |
+| Remind creators to label paid partnerships | ChatGPT, following the skill, when a script promotes a brand the creator doesn't own | Advertising rules in the EU, UK and US require disclosure. |
+| Write the privacy policy and terms of service | Kettle team, with a lawyer; published on the website | Required for OpenAI submission and by law. |
+| Meet GDPR: lawful basis, data processing agreements with Auth0, Supabase, Lightreel, OpenAI and Stripe, EU data storage | Kettle team | Kettle will serve EU users. |
+| Store only what's needed | Kettle server | Less stored means less to protect and less to delete. |
+| Export or delete someone's data on request | Kettle server, started from Kettle's website or by support | A GDPR right, and expected by OpenAI's privacy guidance. |
+| Delete old data on a schedule | Kettle server, with automatic clean-up jobs | Data kept forever is a growing liability. |
+| Lock down data access so each person sees only their own records | Supabase row-level security and Kettle server checks | A bug in one tool shouldn't expose another user's projects. |
+| Set a minimum age | Kettle team, in the terms of service | TikTok and ChatGPT require users to be at least 13, and some EU countries need parental consent below 16. |
+| List a support contact | Kettle team | Required for OpenAI submission. |
+
+## Platform and operations
+
+The production setup follows your architecture plan: Cloud Run for the server, Cloud Tasks for background jobs, Supabase for data. The prototype runs the same code on your computer with a simpler job queue.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Host Kettle's tools at a stable HTTPS address | Kettle server on Cloud Run | OpenAI submission requires a public HTTPS endpoint. A tunnel is only for development. |
+| Run background jobs with retries and time limits | Worker on Cloud Tasks and Cloud Run (prototype: a Postgres job table) | Reference searches take minutes and sometimes fail. |
+| Store data and back it up | Supabase, with point-in-time restore | One managed database, with restores when something goes wrong. |
+| Serve the panel from its own web address with a narrow security policy | Kettle server | Submission requires a unique panel domain, and review checks the declared image and network sources. |
+| Give each breaking panel change a new version address | Kettle team, in the release process | ChatGPT caches panels by address, so an old copy would otherwise linger. |
+| Watch errors, response times and job durations | Kettle server logs and an error tracker | Problems should be found before users report them. |
+| Track cost per 2B and per user, with alerts above $0.90 | Kettle server, from the measurements table | Cost per 2B decides whether $49 a month is profitable. |
+| Limit how often one person can call tools | Kettle server, by account and ChatGPT's anonymous user id | Protects costs and the provider's limits from runaway retries or abuse. |
+| Switch reference providers if Lightreel fails or rights fall through | Kettle server, behind the reference provider interface | One provider shouldn't be able to stop Kettle. |
+| Re-test tool choice with a fixed set of prompts on every change | Kettle team, with an automated test set | OpenAI recommends it, and published plugins are reviewed continuously after tool changes. |
+| Sample script quality every month | Kettle team rates a sample; automated checks run on all scripts | Quality drifts when models or providers change. |
+| Test without spending credits | Automated tests using recorded provider responses | Fast, free and repeatable. |
+| Keep development, staging and production separate | Kettle team: separate Auth0 tenants, databases and API keys | A test should never touch real users or real money. |
+| Keep API keys secret | Google Secret Manager | Keys for Lightreel, OpenAI and Stripe never sit in code. |
+| Pin model versions and re-test before switching | Kettle team | A new model can change script quality and cost overnight. |
+| Submit the plugin to OpenAI: listing, screenshots, test account, skills | Kettle team | Nobody else can. |
+| Respond to incidents and post status updates | Kettle team | Paying users need to know when something's wrong and when it's fixed. |
+
+## Business and growth
+
+The website is where Kettle sells, and the ChatGPT directory is where people find it. Both belong to the Kettle team.
+
+| Job | Who | Why |
+| --- | --- | --- |
+| Run Kettle's website: what it does, pricing, sign-up, account, billing, help, legal pages | Kettle team | It's the only place Kettle is allowed to sell. |
+| Write the directory listing: name, description, icon, example prompts | Kettle team | Good listing text decides whether ChatGPT and people find the plugin. |
+| Answer "how do I…" questions inside ChatGPT | ChatGPT, using a help skill | Most questions can be answered in the chat without a support ticket. |
+| Handle support requests | Kettle team, through email or a help desk | Account, billing and bug problems need a person. |
+| Measure whether Kettle works for people: first 2B, saves, filmed rate, return visits | Kettle server records privacy-safe events | The filmed rate is the closest measure of real value. |
+| Collect feedback on scripts | Panel, with one optional rating per script | Ratings show where scripts fall short, at the moment people judge them. |
+| Set and revisit pricing | Kettle team, using the cost data | The $49 price and $0.90 ceiling are assumptions until real usage data exists. |
+| Manage the provider relationship: contract, rights, prices, limits | Kettle team | The provider is Kettle's most important supplier. |
+| Translate panel text | Panel, using the language ChatGPT reports | ChatGPT writes in the user's language, so the panel should match. |
+| Make it work on phones (decision D2) | Panel, with phone layouts | OpenAI requires plugins to work on desktop and mobile. |
+| Show examples of Kettle's results on the website | Kettle team | People decide faster when they see a real 2B. |
+| Find users: marketing, creator partnerships | Kettle team | The plugin directory alone rarely fills a business. OpenAI says few plugins get featured placement. |
+
+## Prototype coverage
+
+The go/no-go prototype covers the jobs that decide whether Kettle can work at all: references, the first 2B, account linking and the panel. Everything else waits for a go.
+
+| Area | In the prototype | After a go |
+| --- | --- | --- |
+| Start and understand | Brand projects created from chat details; one "Find my next video" skill | First-launch guide, creator and founder paths, project review card, multiple projects |
+| Discover (2B) | Lightreel search, standard reference records, link and poster checks, top pick and 7 alternatives, first script, invented-fact check, 2A, 2B, style chips, chat refinement, Use this idea, no-match and failure states | Founder and creator reference filters, search caching, embed-based posters if Lightreel lacks them |
+| Studio | Not included | All of it, including chat edits saved by the server |
+| Explore | Not included | All of it, after the rights decision |
+| Vault and projects | Save for later and a saved list | Statuses, Undo save, sidebar entry, project home, project management |
+| Accounts and billing | Auth0 linking and token checks | Website, Stripe, plan sync, usage limits, reviewer account |
+| Trust and rights | Source-backed numbers only, credit lines, invented-fact check | Provider contract, policies, GDPR work, data export and deletion, similarity check |
+| Platform | Runs locally behind a tunnel; measurements of time, cost and data completeness; tests on recorded responses | Cloud Run, Cloud Tasks, monitoring, cost alerts, environments, submission |
+| Business | Your ratings of 10 scripts | Website, listing, support, analytics, pricing review |
+
+## Open decisions
+
+Eight open decisions change who does a job. The rights decision matters most, because it can change the reference provider and rules out Explore until it's settled. D-numbers refer to the Core workflows review.
+
+| Decision | Jobs it changes | Options | Recommendation |
+| --- | --- | --- | --- |
+| Commercial rights to reference content | Finding references, posters, Explore libraries | Written permission from Lightreel; a different provider; links and numbers only | Ask Lightreel for written terms now, in parallel with the prototype. |
+| How Kettle learns a creator's style (D7) | Understanding a creator's niche | The creator describes it; TikTok's official login for their own account; a licensed provider | The creator describes it at launch; add official login later. |
+| Whether any free use exists | Trials, usage limits | A website-only trial; no free use | A website-only trial. Confirm with OpenAI during review that this is allowed. |
+| Where the project review appears (1.5B) | Showing the project review | Chat text; an inline card | Chat text first, then a card only if testing shows people miss fields. |
+| Who writes "your version" in Explore (4B) | Opening a library pick | Kettle server with OpenAI API; ChatGPT | Kettle server, because the action starts in the panel and the result belongs there. |
+| How the script leaves Kettle (D3) | Getting the script out | Plain text in chat; a panel Copy button; a share link | Plain text in chat always, plus Copy where the browser allows it. |
+| Library home (D5) and credit format (D6) | Showing libraries, crediting references | As listed in the Core workflows review | Decide them during the post-go design pass. |
+| Phone layouts (D2) | Every panel job | Design phone layouts now; adapt later | Design them now. OpenAI requires mobile support, and check 5 tests the panel on a phone. |

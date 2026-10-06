@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant D as Database
+    U->>C: Export selected script
+    C->>K: Read chosen script, variant and version
+    K->>D: Read authorized content
+    K-->>C: Complete filming guide
+    C-->>U: Return full readable text
+    opt Panel Copy is supported
+        U->>C: Copy the full script
+        C-->>U: Copy result or text fallback
+    end
+    Note over U,D: Export does not mark the piece filmed.
+    opt User explicitly reports filming
+        U->>C: I filmed it; optional date
+        C->>K: Ensure saved item; set filmed status
+        K->>D: Upsert item and record date
+        K-->>C: Saved filmed state
+        C-->>U: Confirm date and allow correction
+        opt User corrects the status
+            U->>C: Mark it saved, not filmed
+            C->>K: Update status with expected version
+            K->>D: Persist corrected state
+            C-->>U: Show corrected status
+        end
+    end

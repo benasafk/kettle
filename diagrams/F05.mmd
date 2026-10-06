@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant K as Kettle backend
+    participant P as Permitted source
+    participant D as Database
+    U->>C: Share links or describe the subject
+    C->>C: Identify subject versus inspiration
+    opt Role or ownership is ambiguous
+        C-->>U: Ask what each input represents
+        U->>C: Clarify purpose
+    end
+    alt Supported and permitted link access
+        C->>K: Request permitted source context
+        K->>P: Retrieve permitted content
+        P-->>K: Content or access failure
+        K-->>C: Context and limitations
+        opt Source cannot be read
+            C-->>U: Ask for relevant pasted details
+            U->>C: Supply missing context
+        end
+    else Description only or unavailable link
+        C-->>U: Use text or ask for relevant details
+        U->>C: Provide essential facts
+    end
+    C-->>U: Summarize brief and assumptions
+    U->>C: Correct material details if needed
+    C->>K: Save usable brief and sources
+    K->>D: Store new brief version
+    D-->>K: Project and version IDs
+    K-->>C: Saved brief
+    C-->>U: Continue with the chosen task

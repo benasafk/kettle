@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as ChatGPT + panel
+    participant W as Kettle website
+    participant A as Identity provider
+    participant K as Kettle backend
+    participant D as Database
+    alt Disconnect through supported ChatGPT controls
+        U->>C: Disconnect Kettle
+        C->>A: Use supported revocation path
+    else Disconnect through Kettle website
+        U->>W: Revoke connected-app access
+        W->>A: Revoke grant or application connection
+    end
+    A->>K: Make revocation state available
+    K->>D: Update enforced connection state
+    C->>K: Attempt later protected access
+    K-->>C: Deny according to revocation policy
+    C-->>U: Explain reconnect option
+    opt User later reconnects
+        U->>C: Reconnect Kettle
+        C->>A: Authorize with PKCE
+        U->>A: Sign in and grant access
+        A-->>C: Code; complete token exchange
+        C->>K: Read authorized account
+        K->>D: Resolve existing account and saved work
+        K-->>C: Account state and saved work
+        C-->>U: Resume intended work
+    end
