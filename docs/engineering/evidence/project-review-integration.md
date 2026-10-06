@@ -91,7 +91,7 @@ contract, database, runtime-binding or secret changes are requested.
 | Targeted browser TypeScript | Passed for bridge, imported real component and controller tests |
 | Worker dry-run build | Passed, no deployment; final changes rebuilt by the runtime test |
 | Existing workerd smoke | Passed: health/website, diagnostic-only auth-unconfigured MCP, origin rejection, local Workflow, JWT/PKCE/cookie fixture |
-| Broad `npm test` | 77/78 passed at that run; sole failure is the coordinated auth list assertion. One additional passing controller case was added afterward |
+| Broad `npm test` | 78/79 passed; sole failure is the coordinated auth list assertion |
 | Full `npm run check` | Blocked at shared DOM/Workers type collision described above; not claimed green |
 | Diff whitespace | Passed |
 
