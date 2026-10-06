@@ -12,6 +12,7 @@
     "test": "tsx --test tests/*.test.ts",
     "test:db": "tsx --test tests/database.test.ts",
     "smoke": "tsx scripts/smoke.ts",
+    "smoke:supabase": "tsx scripts/supabase-smoke.ts",
     "check": "npm run typecheck && npm test && npm run build && npm run smoke",
     "db:start": "node scripts/database.mjs start",
     "db:stop": "node scripts/database.mjs stop",

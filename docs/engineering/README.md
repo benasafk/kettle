@@ -55,6 +55,23 @@ It applies the same migration/seed and supplies the roles normally created by
 Supabase. This is real SQL execution, but does not verify Supabase Auth, PostgREST,
 Docker containers, network latency or concurrent database connections.
 
+## Opt-in hosted development smoke test
+
+After CLI login, linking an explicitly authorized development project and applying
+the reviewed migration, run:
+
+```sh
+KETTLE_TEST_PROJECT_REF=your-development-project-ref npm run smoke:supabase
+```
+
+The project must match the local CLI link. This test accesses server/anonymous API
+keys through the authenticated CLI without printing or saving them. It creates two
+temporary fictional accounts, calls the real PostgREST adapter, tests concurrent
+saves and access denial, and removes only its generated records in a `finally` block.
+It does not apply migrations or reset a database. If cleanup fails, the command fails;
+inspect temporary smoke accounts before another run. This command is deliberately
+excluded from `npm run check` and CI. It does not verify real OAuth.
+
 ## Layout and next steps
 
 | Path | Responsibility |

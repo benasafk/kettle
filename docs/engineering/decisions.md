@@ -65,6 +65,12 @@ table for account-scoped idempotency, alongside accounts/projects/brief_versions
 
 ## Unresolved dependencies
 
+**Follow-up:** hosted Supabase migration application, real PostgREST save/read,
+concurrent writes and access-denial checks now pass; see [verification](verification.md).
+This resolves the hosted database portion of items 1/3 below. Docker-based local
+Supabase and actual user authentication remain unresolved. The user explicitly
+created/linked the development project and requested the Supabase test after Stage 1.
+
 1. **Local Supabase:** Docker daemon is unavailable. Config parses, but containers,
    real PostgREST and hosted Supabase have not been tested. Start Docker to run `db:start`.
 2. **Auth:** compare Supabase Auth with current host OAuth requirements, not merely

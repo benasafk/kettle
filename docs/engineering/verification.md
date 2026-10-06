@@ -1,5 +1,33 @@
 # Stage 1 verification — 2026-10-06
 
+## Follow-up: hosted Supabase verified
+
+After the user created and linked development project `fdicggstdtthfpcrpujf`, the
+public schema was checked and contained no application tables. The migration dry
+run showed only `20261006140000_foundation.sql`; that migration was then applied
+successfully. The fixture seed was not pushed.
+
+`KETTLE_TEST_PROJECT_REF=fdicggstdtthfpcrpujf npm run smoke:supabase` passed against
+the real HTTPS PostgREST API using the repository adapter:
+
+- Account state, project create/read, versioned update and preserved original receipt.
+- Rejected stale versions, changed-payload request-ID reuse and cross-account read/write.
+- Four simultaneous HTTP saves produced one result. Two competing edits produced one
+  success and one version conflict; SQL confirmed exact receipt/version counts.
+- Anonymous table/RPC access was rejected over HTTP. SQL privilege checks confirmed
+  authenticated roles cannot invoke owner-parameter RPCs or select projects, and
+  the service role cannot rewrite brief history.
+- Both temporary fictional accounts and their records were deleted and cleanup verified.
+  The schema remains installed. Keys stayed in process memory and were not printed.
+
+The measured test portion took 4.6 seconds including CLI/network overhead; this is
+not a product latency benchmark. Identity was injected by a test-only verifier, so
+website login, end-user JWT validation, ChatGPT OAuth and hosted Workers remain
+unverified. Docker is still unnecessary for these hosted tests and remains unavailable
+for the full local Supabase stack. Full A44 is still pending.
+
+## Original local foundation results
+
 Local environment: macOS, Node 26.8.2, npm, Wrangler 4.147.0,
 workerd 1.20261001.1, MCP SDK 1.32.1, Zod 4.6.5, PGlite 0.5.8.
 CI targets Node 22; its configuration is added, but no remote CI run was performed.
