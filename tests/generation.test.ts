@@ -55,6 +55,8 @@ test('mock Responses request isolates untrusted content, uses structured output,
     const body = await request.json() as any;
     assert.equal(new URL(request.url).origin, 'https://api.openai.com');
     assert.equal(body.store, false);
+    assert.equal(body.service_tier, 'default');
+    assert.equal(request.redirect, 'error');
     assert.equal(body.text.format.strict, true);
     assert.equal(body.tools, undefined);
     assert.doesNotMatch(body.instructions, /48-hour/);
@@ -169,4 +171,41 @@ test('unsupported claims can pass structure but must fail factual review', async
   assert.ok(validateScript(script, input));
   assert.equal(passesFactualReview(unsupportedClaimReview), false);
   assert.equal(passesFactualReview({ ...unsupportedClaimReview, factual_integrity: 'pending' }), false);
+});
+
+test('incomplete paid output retains usage and bounded raw response for evaluation review', async () => {
+  const body = { ...envelope(await generated()), status: 'incomplete' };
+  const observations: GenerationObservation[] = [];
+  const captured: unknown[] = [];
+  const provider = new OpenAIGenerationProvider(options(mock(() => Response.json(body)), {
+    observe: value => observations.push(value), captureResponse: value => captured.push(value),
+  }));
+  await assert.rejects(provider.generate(input), { code: 'INVALID_OUTPUT' });
+  assert.deepEqual(captured, [body]);
+  assert.equal(observations[0]?.input_tokens, 100);
+  assert.equal(observations[0]?.output_tokens, 120);
+  assert.equal(observations[0]?.reserved_usd, 0.01);
+});
+
+test('fixture editorial reviews apply only to the exact reviewed input, reference, idea and output', async () => {
+  const { reviewFixture } = await import('../evals/fixture-reviews.ts');
+  for (const item of cases) {
+    const script = await fixtureProvider(item).generate(item.input);
+    assert.equal(reviewFixture(item, script).status, 'reviewed');
+    const changed = structuredClone(script);
+    changed.sections[0]!.spoken += ' Unsupported new claim.';
+    const stale = reviewFixture(item, changed);
+    assert.equal(stale.status, 'pending');
+    assert.equal(stale.ratings, null);
+    assert.equal(stale.factual_integrity, 'pending');
+    assert.equal(reviewFixture({ ...item, idea: 'Different idea' }, script).status, 'pending');
+    const changedInput = structuredClone(item);
+    changedInput.input.brief.facts[0]!.statement = 'Different product fact';
+    assert.equal(reviewFixture(changedInput, script).status, 'pending');
+    if (item.references.length) {
+      const changedReference = structuredClone(item);
+      changedReference.references[0]!.format_notes = 'Different reference';
+      assert.equal(reviewFixture(changedReference, script).status, 'pending');
+    }
+  }
 });

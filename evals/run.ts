@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { cases, fixtureProvider, inaccessibleProfile } from './fixtures.ts';
 import { noReferenceFixture } from '../packages/adapters/providers.ts';
 import { ProviderResultDraft } from '../packages/contracts/drafts.ts';
+import { reviewFixture } from './fixture-reviews.ts';
 
 // Deliberately no live switch. Model/provider credentials cannot make this command spend.
 if (process.argv.length > 2) throw new Error('Fixture-only runner accepts no arguments.');
@@ -17,7 +18,7 @@ for (const fixture of cases) {
   const generationStart = performance.now();
   const script = await fixtureProvider(fixture).generate(fixture.input);
   const generationMs = performance.now() - generationStart;
-  results.push({ case: fixture.id, input: fixture.input, idea: fixture.idea, references, script,
+  results.push({ case: fixture.id, input: fixture.input, idea: fixture.idea, references, script, review: reviewFixture(fixture, script),
     observation: { provenance: 'fixture', provider: 'authored_fixture', model: null, fixture_version: 1, attempts: 1,
       acknowledgement_ms: null, acknowledgement_reason: 'In-process harness has no user-facing acknowledgement.',
       reference_ms: referenceMs, generation_ms: generationMs, total_ms: performance.now() - start,
