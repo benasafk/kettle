@@ -17,6 +17,33 @@ before(async () => {
 });
 after(async () => { await db.close(); });
 
+test('identity provisioning is stable, issuer scoped, server only, and revocable', async () => {
+  const issued = Math.floor(Date.now() / 1000) - 10;
+  const resolve = (issuer: string, subject: string, iat = issued) => db.transaction(async (tx) => {
+    await tx.exec('set local role service_role');
+    const result = await tx.query<{ id: string | null }>(
+      'select public.kettle_resolve_identity($1,$2,$3) as id', [issuer, subject, iat]);
+    return result.rows[0]!.id;
+  });
+  const id = await resolve('https://identity.example.com/', 'test-subject');
+  assert.ok(id);
+  assert.equal(await resolve('https://identity.example.com/', 'test-subject'), id);
+  assert.notEqual(await resolve('https://other.example.com/', 'test-subject'), id);
+  await db.query('update public.account_identities set tokens_valid_after=to_timestamp($1) where account_id=$2', [issued, id]);
+  assert.equal(await resolve('https://identity.example.com/', 'test-subject'), null);
+  assert.equal(await resolve('https://identity.example.com/', 'test-subject', issued + 1), id);
+  await db.query('update public.account_identities set blocked=true where account_id=$1', [id]);
+  assert.equal(await resolve('https://identity.example.com/', 'test-subject', issued + 1), null);
+  assert.equal(await resolve('', 'invalid'), null);
+  assert.equal(await resolve('https://identity.example.com/', 'future', issued + 3600), null);
+  for (const role of ['anon', 'authenticated']) {
+    await assert.rejects(db.transaction(async (tx) => {
+      await tx.exec(`set local role ${role}`);
+      await tx.query('select public.kettle_resolve_identity($1,$2,$3)', ['https://identity.example.com/', 'test-subject', issued]);
+    }), /permission denied/);
+  }
+});
+
 async function rpc(operation: keyof typeof toolContracts, accountId: string, input: unknown) {
   return db.transaction(async (tx) => {
     await tx.exec('set local role service_role');

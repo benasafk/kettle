@@ -1,5 +1,11 @@
 # Initial application contract v1.0.0
 
+Stage 2 preserves these v1 schemas and application operations. A real JWT verifier,
+server-only identity mapping and optional authenticated website/MCP registration
+are now implemented; see [auth setup](auth-stage2.md) and [current evidence](stage2-verification.md).
+The default unconfigured Worker still exposes only `kettle_diagnostic`. Historical
+Stage 1 statements below about missing implementations refer to that baseline.
+
 Executable source: `packages/contracts/index.ts`. Draft generation, reference and job
 schemas are explicitly separate in `drafts.ts`; they are not public tools or tables.
 

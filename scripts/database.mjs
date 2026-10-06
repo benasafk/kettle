@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { workspace } from './workspace.mjs';
 const command = process.argv[2];
-if (!['start', 'stop', 'reset', 'status'].includes(command) || process.argv.length !== 3) throw new Error('Use db:start, db:stop, db:reset or db:status');
+if (!['start', 'stop', 'reset', 'status', 'migrate'].includes(command) || process.argv.length !== 3) throw new Error('Use db:start, db:stop, db:reset db:status or db:migrate');
 const ws = await workspace();
 const directory = '.context/local-supabase';
 await mkdir(`${directory}/supabase`, { recursive: true });
@@ -15,7 +15,7 @@ await writeFile(`${directory}/supabase/config.toml`, config);
 await rm(`${directory}/supabase/migrations`, { recursive: true, force: true });
 await cp('supabase/migrations', `${directory}/supabase/migrations`, { recursive: true });
 await cp('supabase/seed.sql', `${directory}/supabase/seed.sql`);
-const args = command === 'reset' ? ['db', 'reset', '--local'] : [command];
+const args = command === 'reset' ? ['db', 'reset', '--local'] : command === 'migrate' ? ['migration', 'up', '--local'] : [command];
 // No arbitrary CLI passthrough, remote URL, linked project or shared config accepted.
 const result = spawnSync('node_modules/.bin/supabase', [...args, '--workdir', directory], { stdio: 'inherit' });
 if (result.error) throw result.error;

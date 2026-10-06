@@ -1,5 +1,30 @@
 # Stage 1 decisions and open dependencies
 
+## Stage 2 follow-up, 2026-10-06
+
+See [Stage 2 evidence](stage2-verification.md) for current status; the original
+Stage 1 record below is historical. Docker/local Supabase and actual PostgREST
+concurrency/rollback/restart-read checks now pass. Hosted foundation smoke also
+passed again. New identity mapping migration is applied locally, not yet hosted.
+
+- `(issuer, subject)` maps atomically to one internal account through a server-only
+  RPC; no email linking. Identity blocking and issued-at cutoff are checked on calls.
+- Auth0-compatible RS256/OIDC implementation is provisional for Stage 2. Supabase's
+  documented lack of custom OAuth scopes conflicts with the adopted v1 scopes;
+  this is a documentation finding, not an observed failed ChatGPT connection. See
+  [auth decision](auth-stage2.md) for evidence and tenant setup.
+- Auth is disabled without complete configuration. Website uses PKCE/state and
+  encrypted Secure HttpOnly cookies; ChatGPT uses separately issued bearer tokens.
+  No custom authorization server or production fixture identity was introduced.
+- Added `jose` 6.2.12 as a direct pinned dependency and a separate Wrangler
+  `development` environment. No deployment or public distribution performed.
+- Generation/reference schemas remain drafts. Evaluation adds an internal idea/script
+  seam and authored fixtures; no generation tools, ingestion or job orchestration.
+- The user's aggregate live-test cap is $25 including retries; no paid calls made.
+
+The user confirmed there is no Auth0 development tenant. Hosted OAuth remains open,
+as do live model quality, reference permissions and actual provider cost measurements.
+
 Recorded 2026-10-06 by the integration lead. This supplements the root
 `07-decisions-and-sources.md`; historical proposals and original files are preserved.
 The user's Stage 1 instructions take precedence over the pack's broader milestones.

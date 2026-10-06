@@ -1,5 +1,9 @@
 # Stage 1 verification — 2026-10-06
 
+For subsequent implementation and personally rerun checks, see
+[Stage 2 verification](stage2-verification.md). The entries below preserve the
+original Stage 1 evidence and its later hosted-database follow-up.
+
 ## Follow-up: hosted Supabase verified
 
 After the user created and linked development project `fdicggstdtthfpcrpujf`, the

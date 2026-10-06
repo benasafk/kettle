@@ -23,6 +23,9 @@ try {
   const home = await fetch(base);
   assert.match(await home.text(), /Kettle/);
   assert.equal((await fetch(`${base}/mcp`, { method: 'POST', headers: { Origin: 'https://untrusted.example' } })).status, 403);
+  const authRuntime = await fetch(`${base}/__fixture/auth`, { method: 'POST' });
+  assert.equal(authRuntime.status, 200);
+  assert.deepEqual(await authRuntime.json(), { status: 'passed', fixture: true });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)));
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map((tool) => tool.name), ['kettle_diagnostic']);
@@ -48,7 +51,7 @@ try {
     await delay(250);
   }
   assert.ok(completed, 'Local workflow must complete within 15 seconds');
-  console.log('PASS: workerd health + website, MCP initialize/list/call, product tools unavailable, origin rejection, local Workflow completion.');
+  console.log('PASS: workerd health + website, MCP initialize/list/call, product tools unavailable, origin rejection, local Workflow completion; fixture JWT/PKCE/encrypted-cookie roundtrip in workerd.');
 } finally {
   await client.close();
   await worker.stop();

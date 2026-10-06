@@ -13,7 +13,7 @@ export function createSupabaseRepository(
   return {
     async call(operation, accountId, input) {
       const response = await fetcher(new URL(`/rest/v1/rpc/kettle_${operation}`, url), {
-        method: 'POST',
+        method: 'POST', redirect: 'error',
         headers: { 'Content-Type': 'application/json', apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
         body: JSON.stringify({ p_account_id: accountId, p_input: input }),
         signal: AbortSignal.timeout(10_000),
@@ -21,5 +21,24 @@ export function createSupabaseRepository(
       if (!response.ok) throw new Error('Database request failed');
       return response.json();
     },
+  };
+}
+
+/** The caller must first validate the issuer JWT. These parameters never come from tool input. */
+export function createSupabaseIdentityResolver(baseUrl: string, serviceRoleKey: string, fetcher: typeof fetch = fetch) {
+  // Reuse URL/credential validation without executing an operation.
+  createSupabaseRepository(baseUrl, serviceRoleKey, fetcher);
+  return async (issuer: string, subject: string, issuedAt: number): Promise<string | null> => {
+    const response = await fetcher(new URL('/rest/v1/rpc/kettle_resolve_identity', baseUrl), {
+      method: 'POST', redirect: 'error',
+      headers: { 'Content-Type': 'application/json', apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` },
+      body: JSON.stringify({ p_issuer: issuer, p_subject: subject, p_issued_at: issuedAt }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error('Identity storage unavailable');
+    const accountId: unknown = await response.json();
+    if (accountId === null) return null;
+    if (typeof accountId !== 'string' || !/^[0-9a-f-]{36}$/i.test(accountId)) throw new Error('Invalid identity result');
+    return accountId;
   };
 }
