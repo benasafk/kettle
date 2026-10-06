@@ -1,5 +1,19 @@
 # Stage 1 decisions and open dependencies
 
+## Project-review UI milestone — 2026-10-06
+
+The user approved beginning with a saved-project review card and splitting delivery
+into UI and ChatGPT Integration workspaces, with Bangkok retaining shared decisions,
+review, merges and deployment coordination. The [Milestone C implementation brief](assignments/C-project-review-card.md)
+defines the data mapping, read-only render tool/resource, component/bridge interface,
+refresh/error behavior and file ownership. It reuses v1 project reads; it does not
+adopt the entire Paper design scope or change business contracts. Implementation
+workspaces must start from a `main` revision containing this brief.
+
+Paper's current **Kettle · Core workflows** page has now been visually inspected;
+the older page name and statements that no visual review occurred below are historical.
+The original designs remain unchanged. No UI implementation is claimed by this entry.
+
 Latest status: the [Bangkok hosted update](stage2-verification.md#hosted-acceptance-update--bangkok-2026-10-06)
 records development deployment, hosted identity migration application, and user-reported
 website/ChatGPT acceptance. Earlier pending-hosted statements below are historical.
