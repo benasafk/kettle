@@ -4,9 +4,9 @@ import { projectReviewScript } from '../panel/generated/project-review-bundle.ts
 export const PROJECT_REVIEW_URI = 'ui://kettle/project-review-v1.html';
 export const PROJECT_REVIEW_MIME = 'text/html;profile=mcp-app';
 export const PROJECT_REVIEW_META = {
+  'openai/ui': { availableDisplayModes: ['inline'] },
   ui: {
     prefersBorder: false,
-    availableDisplayModes: ['inline'],
     csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] },
     permissions: {},
   },

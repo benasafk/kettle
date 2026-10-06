@@ -76,7 +76,7 @@ test('authenticated MCP lists scoped tools and returns OAuth challenges; injecte
     return response;
   };
   const listing = await (await rpc('tools/list', {})).json() as { result: { tools: { name: string; _meta: unknown; securitySchemes: unknown }[] } };
-  assert.deepEqual(listing.result.tools.map((tool) => tool.name), ['kettle_diagnostic', 'get_account_state', 'get_project', 'save_project']);
+  assert.deepEqual(listing.result.tools.map((tool) => tool.name), ['kettle_diagnostic', 'get_account_state', 'get_project', 'save_project', 'show_project_brief']);
   assert.deepEqual(listing.result.tools[3]?.securitySchemes, [{ type: 'oauth2', scopes: ['projects:write'] }]);
   assert.deepEqual(listing.result.tools[3]?._meta, { securitySchemes: [{ type: 'oauth2', scopes: ['projects:write'] }] });
   const denied = await (await rpc('tools/call', { name: 'save_project', arguments: createInput() })).json() as { result: { isError: boolean; _meta: Record<string, string[]> } };

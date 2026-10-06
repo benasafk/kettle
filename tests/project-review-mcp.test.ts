@@ -103,6 +103,8 @@ test('project-review render tool uses signed identity, exact read contract and r
   const resource = read.result.contents[0]!;
   assert.equal(resource.mimeType, PROJECT_REVIEW_MIME);
   assert.deepEqual(resource._meta, PROJECT_REVIEW_META);
+  assert.deepEqual((resource._meta as Record<string, unknown>)['openai/ui'], { availableDisplayModes: ['inline'] });
+  assert.ok(!('availableDisplayModes' in PROJECT_REVIEW_META.ui));
   assert.match(resource.text, /<script>/);
   assert.match(resource.text, /ui\/initialize/);
   assert.match(resource.text, /Your project brief/);
