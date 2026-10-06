@@ -56,7 +56,7 @@ test('mock Responses request isolates untrusted content, uses structured output,
     assert.equal(new URL(request.url).origin, 'https://api.openai.com');
     assert.equal(body.store, false);
     assert.equal(body.service_tier, 'default');
-    assert.equal(request.redirect, 'error');
+    assert.equal(request.redirect, 'manual');
     assert.equal(body.text.format.strict, true);
     assert.equal(body.tools, undefined);
     assert.doesNotMatch(body.instructions, /48-hour/);

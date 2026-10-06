@@ -44,7 +44,7 @@ async function flow() {
     return failure('NOT_FOUND');
   } });
   const fetcher = (async (url, init) => {
-    assert.equal(init?.redirect, 'error');
+    assert.equal(init?.redirect, 'manual');
     if (String(url) === metadata.revocation_endpoint) { revoked++; return new Response(null, { status: revocationStatus }); }
     assert.equal(String(url), metadata.token_endpoint); exchanges++;
     const form = new URLSearchParams(String(init?.body));

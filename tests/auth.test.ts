@@ -17,7 +17,7 @@ test('captured kettle.eu.auth0.com public metadata passes the existing discovery
     resource: 'https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp' };
   const discovered = await discover(tenantConfig, (async (url, init) => {
     assert.equal(String(url), evidence.source);
-    assert.equal(init?.redirect, 'error');
+    assert.equal(init?.redirect, 'manual');
     return Response.json(evidence.metadata);
   }) as typeof fetch);
   assert.equal(discovered.issuer, tenantConfig.issuer);
@@ -56,7 +56,7 @@ test('discovery rejects issuer mismatch, foreign endpoints, missing PKCE and red
   for (const override of [ { issuer: 'https://evil.example/' }, { token_endpoint: 'https://evil.example/token' },
     { jwks_uri: 'http://identity.example/keys' }, { code_challenge_methods_supported: ['plain'] } ]) {
     await assert.rejects(discover(config, (async (_url, init) => {
-      assert.equal(init?.redirect, 'error'); return Response.json({ ...metadata, ...override });
+      assert.equal(init?.redirect, 'manual'); return Response.json({ ...metadata, ...override });
     }) as typeof fetch));
   }
   assert.deepEqual(await discover(config, (async () => Response.json(metadata)) as typeof fetch), metadata);

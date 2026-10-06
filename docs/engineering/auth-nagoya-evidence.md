@@ -1,5 +1,9 @@
 # Stage 2 A continuation — Nagoya evidence and handoff
 
+Historical specialist handoff. For subsequent deployment and user-reported hosted
+acceptance, see the [Bangkok update](stage2-verification.md#hosted-acceptance-update--bangkok-2026-10-06).
+The pending configuration/deployment statements below describe the earlier handoff.
+
 Date: 2026-10-06. **Local continuation complete; hosted authentication acceptance blocked.**
 Auth0 remains provisional. The user has now confirmed the tenant `kettle.eu.auth0.com`,
 canonical origin `https://kettle-stage2-development.g-baltramiejunas.workers.dev`, and

@@ -35,7 +35,7 @@ test('Supabase adapter sends verified owner separately to a bounded HTTPS RPC', 
   const fetcher = (async (url: URL | RequestInfo, init?: RequestInit) => {
     assert.equal(String(url), 'https://example.supabase.co/rest/v1/rpc/kettle_get_project');
     assert.equal(init?.method, 'POST');
-    assert.equal(init?.redirect, 'error');
+    assert.equal(init?.redirect, 'manual');
     assert.equal(JSON.parse(String(init?.body)).p_account_id, accountA);
     assert.ok(init?.signal);
     return Response.json(failure('NOT_FOUND'));
