@@ -27,5 +27,10 @@
     "tests/**/*.ts",
     "worker-configuration.d.ts",
     "evals/**/*.ts"
+  ],
+  "exclude": [
+    "apps/panel/**",
+    "tests/panel/**",
+    "tests/project-review-bridge.test.ts"
   ]
 }
