@@ -209,3 +209,37 @@ test('fixture editorial reviews apply only to the exact reviewed input, referenc
     }
   }
 });
+
+test('a retry failing before headers does not inherit the previous HTTP status', async () => {
+  let calls = 0;
+  const observations: GenerationObservation[] = [];
+  const provider = new OpenAIGenerationProvider(options(mock(() => {
+    if (++calls === 1) return new Response('', { status: 500 });
+    throw new Error('fictional network failure');
+  }), { maxAttempts: 2, observe: value => observations.push(value) }));
+  await assert.rejects(provider.generate(input), { code: 'PROVIDER', attempts: 2 });
+  assert.equal(calls, 2);
+  assert.equal(observations[0]?.http_status, null);
+  assert.equal(observations[0]?.reserved_usd, 0.02);
+  assert.equal(observations[0]?.input_tokens, null);
+});
+
+test('local evidence-write failure retains received usage without retry or refund', async () => {
+  let calls = 0;
+  const body = envelope(await generated());
+  const observations: GenerationObservation[] = [];
+  const provider = new OpenAIGenerationProvider(options(mock(() => {
+    calls++;
+    return Response.json(body);
+  }), {
+    maxAttempts: 2, observe: value => observations.push(value),
+    captureResponse: () => { throw new Error('private-local-path-must-not-leak'); },
+  }));
+  await assert.rejects(provider.generate(input), { code: 'PROVIDER', attempts: 1, message: 'PROVIDER' });
+  assert.equal(calls, 1);
+  assert.equal(observations[0]?.input_tokens, 100);
+  assert.equal(observations[0]?.output_tokens, 120);
+  assert.equal(observations[0]?.http_status, 200);
+  assert.equal(observations[0]?.reserved_usd, 0.01);
+  assert.equal(observations[0]?.cost_usd, null);
+});
