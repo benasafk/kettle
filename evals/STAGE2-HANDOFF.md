@@ -48,6 +48,13 @@ Reserved: **$0**. Unreserved allowance: **$25**. No subscription, credit purchas
 free-trial activation or provider outreach occurred. Local computing/review and
 existing infrastructure costs are excluded from provider spend.
 
+Before any paid run, coordinate the remaining **aggregate** balance and the proposed
+batch with the Bangkok lead. The prepared $4 batch is a maximum future reservation,
+not an allocation already spent or a separate provider allowance. This workspace
+rechecked `OPENAI_API_KEY`, `LIGHTREEL_API_KEY`, `SCRAPECREATORS_API_KEY` and
+`ENSEMBLEDATA_API_KEY`: all absent. Only `.env.example` and `.dev.vars.example` exist
+locally. No secret values were printed and no authenticated provider call was made.
+
 Engineering trial selection: `gpt-4.1-mini-2025-04-14`, a pinned non-reasoning model
 documented to support Responses and structured output. It is an inexpensive initial
 feasibility sample, not a claim that it is the best current model. Published rates
@@ -81,6 +88,15 @@ Usage-derived estimates charge all reported input at the uncached rate; they are
 not invoices. Raw responses retain cached-token details for later reconciliation.
 Incomplete model responses now retain their reported usage, rather than losing it
 during completion validation. Unknown costs remain covered by reservations.
+
+`LiveBudgetLedger.recordBilledCost` appends an actual USD charge and non-secret
+receipt reference against an existing reservation. Use provider receipts only;
+never promote a token-price estimate to actual billing. Duplicate/orphan entries
+are rejected. The snapshot reports known billed costs and unreconciled reservations
+separately; total billed cost remains null until every reservation is reconciled.
+Lower actual costs do not release reservations. Any actual charge above its reserved
+bound freezes new reservations until the bound is reconciled with Bangkok. Unit
+tests use fictional receipts in temporary directories; the real ledger is empty.
 
 ## Reference candidates: documentation evidence only
 
@@ -117,6 +133,13 @@ the meal planner needs actual UI confirmation; bag staging must avoid implying
 unverified capacity. These are agent editorial observations of authored text,
 not model-quality measurements or creator approval.
 
+The fixture runner now embeds those editorial ratings and reasons directly in
+`results.fixture.json`. Each review is bound to a SHA-256 digest covering the input,
+idea, reference material and script. A change to any reviewed content produces a
+pending review with no ratings; it cannot inherit the old approval. This is a
+staleness check, not automated factual grading. All six current authored outputs
+have matching reviews. No minimum-quality release gate is implied by these scores.
+
 The existing paired lamp samples show different staging with an authored reference,
 not an observed improvement from paid references. The battery-life negative sample
 still demonstrates that valid fact IDs do not prove a claim. No live output receives
@@ -148,6 +171,13 @@ Final `npm run check` passed with **46 tests**, TypeScript, dry-run Worker build
 local workerd smoke. `npm run eval:generation`, live preflight and `git diff --check`
 also passed. These checks do not establish live model/API/schema compatibility,
 reference coverage, billed cost, model quality or real-user acceptance.
+
+Subsequent fixture/accounting continuation: `npm run check` passed with **49 tests**,
+TypeScript, dry-run build and local smoke. Fixture evaluation and no-network preflight
+passed again. The three added tests cover review staleness, actual-cost reconciliation
+across restarts, and over-bound billing halting further reservations. Live generation
+and ingestion remain unexecuted pending access, permissions and Bangkok spending
+coordination. This change is ready for PR review as local evaluation preparation.
 
 Changes are limited to adapters, generation tests, evaluation artifacts and this
 report (plus a link from the earlier generation report). No shared contracts,

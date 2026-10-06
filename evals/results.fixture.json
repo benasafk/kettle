@@ -1,5 +1,5 @@
 {
-  "recorded_at": "2026-10-06T12:13:55.574Z",
+  "recorded_at": "2026-10-06T12:45:33.319Z",
   "environment": {
     "node": "v26.8.2",
     "platform": "darwin"
@@ -84,6 +84,28 @@
           "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed."
         ]
       },
+      "review": {
+        "evidence": "agent_editorial_review_of_authored_fixture",
+        "reviewer": "Kettle Stage 2 B agent",
+        "reviewed_at": "2026-10-06",
+        "content_sha256": "05a7cb20f04e3b9fcd3f9018a9b7c49b3f4de9ed5217f8b891b702e9155dd8fb",
+        "status": "reviewed",
+        "ratings": {
+          "relevance": 5,
+          "opening": 3,
+          "clarity": 5,
+          "filmability": 5,
+          "freshness": 2
+        },
+        "factual_integrity": "pass",
+        "appropriate_reference_use": "pass",
+        "notes": [
+          "Supplied settings are demonstrated without battery-life claims.",
+          "Lock exposure to make the comparison meaningful; the opening is generic."
+        ],
+        "creator_approval": "not_observed",
+        "duration_evidence": "estimated_not_filmed"
+      },
       "observation": {
         "provenance": "fixture",
         "provider": "authored_fixture",
@@ -92,9 +114,9 @@
         "attempts": 1,
         "acknowledgement_ms": null,
         "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
-        "reference_ms": 0.4115409999999997,
-        "generation_ms": 0.6118330000000185,
-        "total_ms": 1.0385829999999885,
+        "reference_ms": 0.7325419999999951,
+        "generation_ms": 0.8853750000000105,
+        "total_ms": 2.4863750000000095,
         "first_usable_idea_ms": null,
         "refinement_ms": null,
         "input_tokens": 0,
@@ -199,6 +221,28 @@
           "Adapted only from authored fixture format notes; no media, transcript, engagement metrics or real-world freshness evidence."
         ]
       },
+      "review": {
+        "evidence": "agent_editorial_review_of_authored_fixture",
+        "reviewer": "Kettle Stage 2 B agent",
+        "reviewed_at": "2026-10-06",
+        "content_sha256": "78bc92480cfabfadc96f85fdc243e87f536e384f4df711a26e99becf1d8e7636",
+        "status": "reviewed",
+        "ratings": {
+          "relevance": 5,
+          "opening": 3,
+          "clarity": 5,
+          "filmability": 5,
+          "freshness": 3
+        },
+        "factual_integrity": "pass",
+        "appropriate_reference_use": "pass",
+        "notes": [
+          "The original fictional format changes staging without supplying product facts.",
+          "An empty-desk reveal adds variety, not evidence of paid-reference value."
+        ],
+        "creator_approval": "not_observed",
+        "duration_evidence": "estimated_not_filmed"
+      },
       "observation": {
         "provenance": "fixture",
         "provider": "authored_fixture",
@@ -207,9 +251,9 @@
         "attempts": 1,
         "acknowledgement_ms": null,
         "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
-        "reference_ms": 0.2716250000000002,
-        "generation_ms": 0.08941700000002584,
-        "total_ms": 0.3654579999999896,
+        "reference_ms": 0.41141700000000014,
+        "generation_ms": 0.10649999999998272,
+        "total_ms": 0.5568340000000092,
         "first_usable_idea_ms": null,
         "refinement_ms": null,
         "input_tokens": 0,
@@ -302,6 +346,28 @@
           "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed."
         ]
       },
+      "review": {
+        "evidence": "agent_editorial_review_of_authored_fixture",
+        "reviewer": "Kettle Stage 2 B agent",
+        "reviewed_at": "2026-10-06",
+        "content_sha256": "3dc272f81a131b12cdba9060f01a007523d361e638b3ada7ebec93d42481e763",
+        "status": "reviewed",
+        "ratings": {
+          "relevance": 5,
+          "opening": 3,
+          "clarity": 5,
+          "filmability": 5,
+          "freshness": 2
+        },
+        "factual_integrity": "pass",
+        "appropriate_reference_use": "pass",
+        "notes": [
+          "Every spoken field is empty and shots keep faces out of frame.",
+          "No durability or sustainability claims; familiar desk-ritual concept."
+        ],
+        "creator_approval": "not_observed",
+        "duration_evidence": "estimated_not_filmed"
+      },
       "observation": {
         "provenance": "fixture",
         "provider": "authored_fixture",
@@ -310,9 +376,9 @@
         "attempts": 1,
         "acknowledgement_ms": null,
         "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
-        "reference_ms": 0.012291999999973768,
-        "generation_ms": 0.05304200000000492,
-        "total_ms": 0.06850000000000023,
+        "reference_ms": 0.01954200000000128,
+        "generation_ms": 0.06850000000000023,
+        "total_ms": 0.1074999999999875,
         "first_usable_idea_ms": null,
         "refinement_ms": null,
         "input_tokens": 0,
@@ -406,6 +472,28 @@
           "The example.com product page is a fictional fact source, not a fetched page."
         ]
       },
+      "review": {
+        "evidence": "agent_editorial_review_of_authored_fixture",
+        "reviewer": "Kettle Stage 2 B agent",
+        "reviewed_at": "2026-10-06",
+        "content_sha256": "218abc363c059a84aeaef0be265f5d2172c3de2888b6bbfdc6f33bb87de30512",
+        "status": "reviewed",
+        "ratings": {
+          "relevance": 5,
+          "opening": 3,
+          "clarity": 4,
+          "filmability": 3,
+          "freshness": 2
+        },
+        "factual_integrity": "pass",
+        "appropriate_reference_use": "pass",
+        "notes": [
+          "The fictional URL was not fetched; weekly planning and shopping lists are supplied facts.",
+          "Actual screens must be confirmed before filming; automatic list generation is not claimed."
+        ],
+        "creator_approval": "not_observed",
+        "duration_evidence": "estimated_not_filmed"
+      },
       "observation": {
         "provenance": "fixture",
         "provider": "authored_fixture",
@@ -414,9 +502,9 @@
         "attempts": 1,
         "acknowledgement_ms": null,
         "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
-        "reference_ms": 0.009458000000023503,
-        "generation_ms": 0.05854199999998855,
-        "total_ms": 0.07091699999998013,
+        "reference_ms": 0.012500000000017053,
+        "generation_ms": 0.06525000000002024,
+        "total_ms": 0.09250000000000114,
         "first_usable_idea_ms": null,
         "refinement_ms": null,
         "input_tokens": 0,
@@ -501,6 +589,28 @@
           "Historical version only; must not replace work for brief version 2."
         ]
       },
+      "review": {
+        "evidence": "agent_editorial_review_of_authored_fixture",
+        "reviewer": "Kettle Stage 2 B agent",
+        "reviewed_at": "2026-10-06",
+        "content_sha256": "ad80762dcd55d1b6b73063d40b583d3bf2e0d4c193ee137b8e412435b725ce46",
+        "status": "reviewed",
+        "ratings": {
+          "relevance": 5,
+          "opening": 3,
+          "clarity": 4,
+          "filmability": 4,
+          "freshness": 2
+        },
+        "factual_integrity": "pass",
+        "appropriate_reference_use": "pass",
+        "notes": [
+          "Two pockets agrees with historical brief version 1 only.",
+          "This is not current-version output or proof of asynchronous persistence. Confirm objects fit."
+        ],
+        "creator_approval": "not_observed",
+        "duration_evidence": "estimated_not_filmed"
+      },
       "observation": {
         "provenance": "fixture",
         "provider": "authored_fixture",
@@ -509,9 +619,9 @@
         "attempts": 1,
         "acknowledgement_ms": null,
         "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
-        "reference_ms": 0.011167000000000371,
-        "generation_ms": 0.049791999999996506,
-        "total_ms": 0.06362500000000182,
+        "reference_ms": 0.01229200000000219,
+        "generation_ms": 0.06770800000001032,
+        "total_ms": 0.09491600000001199,
         "first_usable_idea_ms": null,
         "refinement_ms": null,
         "input_tokens": 0,
@@ -595,6 +705,28 @@
           "Hand-authored synthetic output; not a model-quality observation. Timing is estimated, not filmed."
         ]
       },
+      "review": {
+        "evidence": "agent_editorial_review_of_authored_fixture",
+        "reviewer": "Kettle Stage 2 B agent",
+        "reviewed_at": "2026-10-06",
+        "content_sha256": "8703cff87710fafbda417549332cd29ce6aed0b9a4259716c8f500b8e9874777",
+        "status": "reviewed",
+        "ratings": {
+          "relevance": 5,
+          "opening": 3,
+          "clarity": 4,
+          "filmability": 4,
+          "freshness": 2
+        },
+        "factual_integrity": "pass",
+        "appropriate_reference_use": "pass",
+        "notes": [
+          "Three pockets agrees with corrected brief version 2.",
+          "No capacity claim is made; the packing setup still needs physical confirmation."
+        ],
+        "creator_approval": "not_observed",
+        "duration_evidence": "estimated_not_filmed"
+      },
       "observation": {
         "provenance": "fixture",
         "provider": "authored_fixture",
@@ -603,9 +735,9 @@
         "attempts": 1,
         "acknowledgement_ms": null,
         "acknowledgement_reason": "In-process harness has no user-facing acknowledgement.",
-        "reference_ms": 0.008915999999999258,
-        "generation_ms": 0.03345799999999599,
-        "total_ms": 0.04487499999999045,
+        "reference_ms": 0.010500000000007503,
+        "generation_ms": 0.03654199999999719,
+        "total_ms": 0.05620799999999804,
         "first_usable_idea_ms": null,
         "refinement_ms": null,
         "input_tokens": 0,

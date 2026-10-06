@@ -186,3 +186,26 @@ test('incomplete paid output retains usage and bounded raw response for evaluati
   assert.equal(observations[0]?.output_tokens, 120);
   assert.equal(observations[0]?.reserved_usd, 0.01);
 });
+
+test('fixture editorial reviews apply only to the exact reviewed input, reference, idea and output', async () => {
+  const { reviewFixture } = await import('../evals/fixture-reviews.ts');
+  for (const item of cases) {
+    const script = await fixtureProvider(item).generate(item.input);
+    assert.equal(reviewFixture(item, script).status, 'reviewed');
+    const changed = structuredClone(script);
+    changed.sections[0]!.spoken += ' Unsupported new claim.';
+    const stale = reviewFixture(item, changed);
+    assert.equal(stale.status, 'pending');
+    assert.equal(stale.ratings, null);
+    assert.equal(stale.factual_integrity, 'pending');
+    assert.equal(reviewFixture({ ...item, idea: 'Different idea' }, script).status, 'pending');
+    const changedInput = structuredClone(item);
+    changedInput.input.brief.facts[0]!.statement = 'Different product fact';
+    assert.equal(reviewFixture(changedInput, script).status, 'pending');
+    if (item.references.length) {
+      const changedReference = structuredClone(item);
+      changedReference.references[0]!.format_notes = 'Different reference';
+      assert.equal(reviewFixture(changedReference, script).status, 'pending');
+    }
+  }
+});

@@ -72,3 +72,36 @@ test('live CLI cannot spend implicitly or without credentials and does not reser
   }
   assert.equal(readFileSync(path, 'utf8'), before);
 });
+
+test('actual billed costs remain distinct from estimates and do not release reservations', () => withLedger(path => {
+  const ledger = new LiveBudgetLedger(path);
+  try {
+    assert.equal(ledger.snapshot().billed_cost_usd, 0);
+    ledger.reserve({ id: 'openai-1', provider: 'openai', upper_bound_usd: 0.5 });
+    ledger.reserve({ id: 'reference-1', provider: 'scrapecreators', upper_bound_usd: 0.5 });
+    assert.equal(ledger.snapshot().billed_cost_usd, null);
+    assert.equal(ledger.snapshot().unreconciled_reservations, 2);
+    assert.throws(() => ledger.recordBilledCost({ reservation_id: 'unknown', actual_usd: 0.01, receipt_reference: 'fictional-receipt' }), /Unknown/);
+    ledger.recordBilledCost({ reservation_id: 'openai-1', actual_usd: 0.01, receipt_reference: 'fictional-unit-test-receipt-1' });
+    assert.equal(ledger.snapshot().known_billed_usd, 0.01);
+    assert.equal(ledger.snapshot().billed_cost_usd, null);
+    assert.throws(() => ledger.recordBilledCost({ reservation_id: 'openai-1', actual_usd: 0.01, receipt_reference: 'fictional-unit-test-receipt-1' }), /Duplicate/);
+    ledger.recordBilledCost({ reservation_id: 'reference-1', actual_usd: 0, receipt_reference: 'fictional-unit-test-free-credit-receipt' });
+    assert.equal(ledger.snapshot().billed_cost_usd, 0.01);
+    assert.equal(ledger.snapshot().remaining_unreserved_usd, 24);
+  } finally { ledger.close(); }
+  const reopened = new LiveBudgetLedger(path);
+  try { assert.equal(reopened.snapshot().billed_cost_usd, 0.01); } finally { reopened.close(); }
+}));
+
+test('a receipt exceeding its bound is preserved and stops all further provider reservations', () => withLedger(path => {
+  const ledger = new LiveBudgetLedger(path);
+  try {
+    ledger.reserve({ id: '1', provider: 'openai', upper_bound_usd: 0.5 });
+    ledger.recordBilledCost({ reservation_id: '1', actual_usd: 0.75, receipt_reference: 'fictional-unit-test-overage' });
+    assert.equal(ledger.snapshot().known_billed_usd, 0.75);
+    assert.equal(ledger.snapshot().reservation_bound_breached, true);
+    assert.equal(ledger.snapshot().remaining_unreserved_usd, 24.25);
+    assert.throws(() => ledger.reserve({ id: '2', provider: 'ensembledata', upper_bound_usd: 0.5 }), /Bangkok/);
+  } finally { ledger.close(); }
+}));
