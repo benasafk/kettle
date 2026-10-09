@@ -1,5 +1,32 @@
 # Stage 2 B continuation — 2026-10-06
 
+## Lightreel connection update — 2026-10-09
+
+The user supplied a Lightreel credential and requested connecting systems first.
+The credential is stored only in this workspace's Git-ignored `.env.lightreel`
+with owner-only file permissions. Do not copy it to other workspaces or commit it.
+Earlier statements below about missing Lightreel credentials are historical.
+
+Verified one authenticated `GET https://api.lightreel.ai/v1/chats`: HTTP 200.
+Response contents were discarded without logging or persistence. This establishes
+accepted authentication for that endpoint, not reference quality, profile coverage,
+research availability or a measured billing charge. No `POST /v1/chat` research
+request was submitted. The aggregate research-budget coordination remains open.
+
+Repeat the read-only check locally with:
+
+```sh
+node --env-file=.env.lightreel scripts/lightreel-check.mjs
+```
+
+The script uses a fixed provider URL, refuses redirects, times out after 20 seconds,
+does not retry and suppresses response/error bodies. The connection is local only;
+no Worker secrets, public tools or deployments were changed. Other providers remain
+unverified. Endpoint and Bearer authentication follow the
+[Lightreel API documentation](https://lightreel.ai/docs), checked 2026-10-09.
+
+## Historical evaluation status
+
 **Conditional go for the prepared description-only trial; live quality remains
 unverified. No-go for production reference discovery.** This continuation reused
 the existing fixture harness and OpenAI adapter. No paid provider request was made:

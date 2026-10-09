@@ -17,6 +17,43 @@ Recorded 6 October 2026. This register distinguishes explicit user direction, pr
 | C09 | Use Supabase Postgres as the database | Explicit user statement: Supabase will be used for the database |
 | C10 | Start with Cloudflare Workers + Workflows for hosting and background jobs | Explicit user selection on 6 October 2026 |
 | C11 | Use Render as the fallback if more runtime flexibility is needed | Explicit user direction on 6 October 2026; migration depends on a demonstrated requirement |
+| C12 | When a person links their TikTok or Instagram profile, analyze the profile and initial audience context, identify its best-performing videos as references, and suggest improvements tailored to that context | Explicit user direction on 9 October 2026; see the requirement below |
+
+## Profile-based reference generation — 9 October 2026
+
+**Confirmed product requirement (C12):** a linked TikTok or Instagram profile should
+start profile analysis. Extract the initial profile/audience context, identify the
+profile's best-performing videos, and use those references to offer improvement
+suggestions tailored to the person and their audience. The person's own video
+history is therefore a reference source, alongside external reference discovery.
+
+Implementation and evaluation details below are engineering proposals, not verified
+provider capabilities or a committed release milestone:
+
+- Capture topics, positioning, language, recurring formats and available audience
+  evidence with their sources. Label inferred audience traits separately from
+  observed analytics and user-supplied facts; let the user correct the initial context.
+- Define “best performing” against the user's goal and available metrics. Record
+  the analyzed sample, publication dates, metric observation times and ranking basis;
+  missing metrics must not become zeros. Compare videos within this profile and
+  disclose incomplete coverage rather than claim to have scanned the entire account.
+- Analyze accessible content from selected videos for hooks, structure, pacing,
+  topics and calls to action. Tie each improvement suggestion to specific evidence
+  and explain how it fits the initial profile/audience context. Treat proposed
+  improvements as hypotheses, not proven causes of performance or promised gains.
+- Distinguish supplying a profile URL from authorizing an account connection.
+  Neither a pasted URL nor a claimed social identity establishes Kettle account
+  ownership. Verify which permitted access route supplies profile posts, video
+  content and audience analytics for each platform; unavailable data stays unknown.
+- If access or coverage is insufficient, accept user-supplied videos, excerpts or
+  analytics and explain the limited analysis. Do not claim a scan occurred.
+
+Provider evaluation must now cover **profile enumeration and initial profile/audience
+analysis on both TikTok and Instagram**, in addition to individual-video enrichment
+and external discovery. Existing candidate research does not establish these
+capabilities. Provider selection, ranking formula, scan depth, refresh cadence,
+retention and release scheduling remain open. This entry records product direction;
+it does not claim an implemented integration or authorize live fetching/spending.
 
 ## Proposed choices
 
