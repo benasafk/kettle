@@ -13,11 +13,13 @@ The mount owns the root's children and returns:
 { render(state: CreatorReviewState): void; dispose(): void }
 ```
 
-States use **imported** D0 types from `packages/contracts/creator-profile.ts`:
+States use **imported** D0 types from `packages/contracts/creator-profile.ts` and
+`CreatorDnaView` from `packages/contracts/creator-operations.ts`:
 
 ```ts
 { kind: 'loading' }
 { kind: 'error'; message: string }
+{ kind: 'saved'; dna: CreatorDnaView; preview: boolean }
 { kind: 'scan'; scan: ProfileScanResult; preview: boolean }
 { kind: 'analysis'; analysis: CreatorAnalysis; preview: boolean }
 ```
@@ -34,10 +36,11 @@ Berlin responsibilities before calling render:
   than a DNA snapshot alone. Supply only display-authorized content.
 - Correlate results, reject stale/wrong-identity responses, handle freshness and
   recovery. Rendering an older version does not trigger any write or version repair.
-- Set `preview: true` for fictional fixture paths, including unavailable/failed scans
-  with no observations. Fixture provenance also forces the fictional banner and
-  inert URLs even if the caller sets false. Mixed observations conservatively make
-  the whole review a preview. `preview: false` still makes no persistence/live claim.
+- Set `preview: true` for local fixture inspection. In the production `saved` state,
+  use `preview: false` for persisted DNA, including fictional test data. The shared
+  `contains_fixture_data` flag OR any fixture evidence marks fictional content and
+  keeps source links inert, but does not change Saved version into Preview version.
+  Raw scan/analysis inspection states do not establish persistence.
 - Supply safe user-facing error text. Rendering loading/error clears prior content;
   use these at identity/auth boundaries. On account change, dispose/remount even if
   a scan ID happens to match. Same-scan renders retain open evidence and keyed focus.
@@ -130,8 +133,8 @@ from the validated authenticated `GetCreatorDnaOutput` or `CorrectCreatorDnaOutp
 This path consumes the filtered view from PR #20 and never requires internal scan
 or analysis envelopes. The earlier `scan`/`analysis` states are standalone fixture
 inspection paths; do not transmit internal data to ChatGPT to satisfy those props.
-Server-authorized saved state may be labelled saved; fixtures force preview labels
-and inert links. Bridge authorization, lineage/version validation and text fallback
+Server-authorized saved state is labelled saved, including fictional test data;
+fictional provenance keeps links inert and adds a test-data notice. Bridge authorization, lineage/version validation and text fallback
 remain Integration-owned. The shared projection fixture is available as `saved`
 in the standalone preview. No public scan-job output is invented here.
 
@@ -169,9 +172,11 @@ Captures: `.context/creator-loop-saved-review/{320,640}-{light,dark}.png`.
 ### Integration coordination — no interface change required
 
 Berlin can continue saved-view wiring. Consume only the authorized filtered public
-output. Supply `preview:true` for fixture paths even when no evidence remains (e.g.
-all traits withheld); per-evidence fixture origin also forces preview. Raw fixture
-inspection states are not a production fallback. No additional shared fields needed.
+output. Supply `preview:true` only for local preview paths. Persisted fictional test
+data uses `preview:false`; the required `CreatorDnaView.contains_fixture_data` flag
+from Bangkok preserves its fictional label even when all evidence is corrected away
+or withheld. Fixture evidence independently triggers that label. Raw fixture
+inspection states are not a production fallback. Export signatures are unchanged.
 
 The current error state accepts a safe message, not a Failure object. Berlin should
 map reauthorization to an explicit reconnect message, conflict to reopening current
@@ -185,3 +190,25 @@ Manual VoiceOver announcements, Safari/Firefox, actual ChatGPT focus/theme/CSP a
 cross-chat recovery remain Integration/host acceptance work. There is no new blocker
 for Berlin's saved-view wiring. Bangkok reviews/merges the component-only follow-up;
 no shared contracts/build/runtime, bridge, provider or deployment changes are included.
+
+## Persisted fictional-data labeling follow-up
+
+Against main `f6b79f9`, saved rendering now separates persistence from provenance.
+`preview:true` retains the local preview/no-saved-changes notice. `preview:false`
+always shows Saved version; fictional content adds “Contains fictional test data”
+and “This is not live provider evidence.” The polite status includes the fictional
+notice. The flag OR fixture evidence keeps fictional source URLs inert.
+
+Validation: both Chromium suites passed (13 tests including parent groups), shared
+fixture-schema test passed (1), and whitespace check passed. Dedicated cases cover
+saved fixture evidence, flag-only corrected/withheld empty evidence, evidence fallback
+when the flag is false, non-fixture saved data, and local preview. Saved fictional
+captures: `.context/creator-loop-saved-review/saved-fictional-{320,640}-{light,dark}.png`.
+Existing keyboard, recovery, long-content and hostile-text checks remain passing.
+
+Bangkok's required `CreatorDnaView.contains_fixture_data:boolean` schema/projection
+commit `0e53245` was fast-forwarded into this branch without modifying shared files.
+Panel TypeScript passes against that commit. Every new variant validates through
+the shared schema; no local schema/type substitute was added. These are local fixture
+checks, not proof of hosted persistence or actual ChatGPT behavior. Berlin owns actual
+bridge/host verification; exports and callbacks are unchanged.

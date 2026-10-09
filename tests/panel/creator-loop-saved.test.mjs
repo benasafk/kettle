@@ -78,6 +78,45 @@ test('filtered saved DNA accessibility and recovery', async t => {
       assert.doesNotMatch(await review.textContent(),/Desk demonstrations appear/);
       assert.doesNotMatch(await review.textContent(),/Biography|Provider|requested_cursor|authored-fixture/);
     });
+    await t.test('saved fictional data remains saved, including corrected or withheld empty evidence',async()=> {
+      // Use the shared schema for every provenance/persistence combination.
+      for (const variant of ['fixture', 'withheld', 'corrected', 'evidence-fallback', 'provider']) {
+        await page.evaluate(variant=> {
+          const d=savedTest.fixture();
+          d.contains_fixture_data=variant!=='provider' && variant!=='evidence-fallback';
+          if (variant==='withheld') { d.claims=[];d.evidence=[];d.withheld_claim_count=1; }
+          if (variant==='corrected') {
+            d.claims[0]={...d.claims[0],basis:'user_corrected',evidence:[],supersedes_claim_id:d.claims[0].id};
+            d.evidence=[];
+          }
+          if (variant==='provider') d.evidence.forEach(e=>e.origin='live');
+          savedTest.render(d,false);
+        },variant);
+        if (variant==='fixture') {
+          for (const width of [320,640]) for (const theme of ['light','dark']) {
+            await page.setViewportSize({width:width===640?672:320,height:1100});
+            await page.selectOption('#theme',theme);
+            assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+            await review.screenshot({path:`${screenshots}/saved-fictional-${width}-${theme}.png`});
+          }
+        }
+        assert.match(await review.textContent(),/Saved version 1/);
+        assert.match(await review.getByRole('status').textContent(),/Saved DNA version 1 shown/);
+        assert.doesNotMatch(await review.textContent(),/No live scan or saved changes|Fictional preview|Preview version/);
+        if (variant==='provider') {
+          assert.doesNotMatch(await review.textContent(),/Contains fictional test data/);
+          assert.equal(await review.locator('a').count(),1);
+        } else {
+          assert.match(await review.textContent(),/Contains fictional test data/);
+          assert.match(await review.getByRole('status').textContent(),/Contains fictional test data/);
+          assert.equal(await review.locator('a').count(),0);
+        }
+      }
+      await reset();
+      assert.match(await review.textContent(),/Fictional preview.*No live scan or saved changes/s);
+      assert.match(await review.textContent(),/Preview version 1/);
+      assert.match(await review.getByRole('status').textContent(),/Preview DNA version 1/);
+    });
     await t.test('auth/error clears output, keeps recovery accessible and never steals external focus',async()=> {
       await reset(); await review.locator('summary').focus();
       await page.evaluate(()=>savedTest.ui.render({kind:'error',message:'Reconnect Kettle in ChatGPT, then reopen this review.'}));
