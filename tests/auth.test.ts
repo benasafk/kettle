@@ -26,12 +26,15 @@ test('captured kettle.eu.auth0.com public metadata passes the existing discovery
   assert.ok(discovered.token_endpoint_auth_methods_supported.includes('client_secret_post'));
 });
 
-test('signed tokens validate issuer, resource, lifetime, algorithm, scopes before identity mapping', async () => {
+test('signed tokens validate issuer, resource, lifetime, algorithm, scopes before identity mapping', async (t) => {
   const auth = await fixtureAuth();
+  // Freeze both token issuance and verification: crossing a second must not turn
+  // a 3601-second lifetime into 3600 or a future iat into the present.
+  const now = 1_800_000_000;
+  t.mock.timers.enable({ apis: ['Date'], now: now * 1000 });
   const valid = await auth.token();
   assert.deepEqual(await auth.verifier.verify(valid), { account_id: accountA, scopes: [...scopes] });
   assert.equal(auth.resolutions.length, 1);
-  const now = Math.floor(Date.now() / 1000);
   for (const claims of [
     { iss: 'https://evil.example/' }, { aud: 'authenticated' }, { aud: config.clientId },
     { exp: now - 1 }, { nbf: now + 100 }, { iat: now + 1 }, { iat: undefined }, { exp: undefined },
