@@ -78,3 +78,22 @@ configured development pipeline and active source allowance, although it consume
 no provider units. Source retention must cover full sanitized feed receipts as well
 as admitted public observations; production retention/deletion policy remains open.
 This development trial is not production release or submission readiness.
+
+## Hosted integration and transport regression
+
+PRs #33 and #34 merged into `4f2d2f1`. Development migration history confirms the
+new `20261009170000` migration, and the original test account has an explicit
+12-hour @smartykalz allowance, ten ScrapeCreators units and two Lightreel units.
+Cash limit/reservations are zero. Initial deployment version
+`48e282b0-422d-47ea-9992-e3f8453fdb5b` exposes all thirteen expected tools and the
+static pipeline resource; anonymous reads and invalid tokens are rejected.
+
+After refreshing the actual ChatGPT plugin, its first scan failed before creating
+a job. The provider ledger confirmed no attempts or consumed units. A service-role
+diagnostic of the same request proved the SQL path and queued the original intent;
+this is not claimed as proof of authenticated public scan creation. The cause was
+`redirect: error` in both new transports: workerd rejects that mode before I/O.
+An actual workerd regression reproduced the TypeError. Both transports now use
+`manual` and reject non-2xx responses, preserving no-redirect credential safety.
+The regression covers database/provider Request construction and 302 rejection
+without any external request. Live completion evidence remains pending.

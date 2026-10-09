@@ -5,7 +5,7 @@ export function createPipelineSupabaseRepository(baseUrl:string,serviceRoleKey:s
   createSupabaseRepository(baseUrl,serviceRoleKey,fetcher);
   return {async call(operation,accountId,input){
     if(!allowed.has(operation))throw new Error('Unsupported pipeline operation');
-    const r=await fetcher(new URL(`/rest/v1/rpc/kettle_${operation}`,baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(10000),
+    const r=await fetcher(new URL(`/rest/v1/rpc/kettle_${operation}`,baseUrl),{method:'POST',redirect:'manual',signal:AbortSignal.timeout(10000),
       headers:{'Content-Type':'application/json',apikey:serviceRoleKey,Authorization:`Bearer ${serviceRoleKey}`},body:JSON.stringify({p_account_id:accountId,p_input:input})});
     if(!r.ok)throw new Error('Pipeline storage unavailable');
     return r.json();
