@@ -26,7 +26,7 @@ export class CreatorProviderError extends Error {
 }
 export type CreatorPipelineAdapterOptions = {
   fetch: Fetch;
-  credentials: { scrapeCreators: string; lightreel: string; openai: string };
+  credentials: { scrapeCreators: string; lightreel: string; openai?: string };
   model: string; maxOutputTokens: number; region: string;
   permission: z.infer<typeof ObservationProvenance>['permission'];
   /** Trusted server checks underlying source/model rights; the display view alone cannot establish them. */
@@ -44,7 +44,9 @@ export function createCreatorPipelineProvider(options: CreatorPipelineAdapterOpt
   if (typeof options.canProcessDna !== 'function') throw new CreatorProviderError('permission');
   if (permission.status !== 'approved' || !['store', 'display', 'model_processing'].every(p =>
     permission.permitted_uses.includes(p as 'store' | 'display' | 'model_processing'))) throw new CreatorProviderError('permission');
-  if (Object.values(credentials).some(k => !k || /[\r\n]/.test(k))) throw new Error('Missing provider credential');
+  const validCredential = (key: string | undefined) => typeof key === 'string' && key.trim().length > 0 && !/[\r\n]/.test(key);
+  if (!validCredential(credentials.scrapeCreators) || !validCredential(credentials.lightreel) ||
+    (credentials.openai !== undefined && !validCredential(credentials.openai))) throw new Error('Missing provider credential');
   const maxHistoryReads = options.maxHistoryReads ?? 0;
   if (!Number.isInteger(maxHistoryReads) || maxHistoryReads < 0 || maxHistoryReads > 3) throw new Error('Invalid history bound');
   if (!/^[A-Z]{2}$/.test(options.region)) throw new Error('Invalid region');
@@ -68,8 +70,9 @@ export function createCreatorPipelineProvider(options: CreatorPipelineAdapterOpt
     provider: 'scrapecreators' | 'lightreel' | 'openai',
     operation: 'profile' | 'feed' | 'research' | 'poll' | 'video' | 'generate',
     url: URL, body: string | undefined, decode: (body: string) => string) {
+    const apiKey = provider === 'scrapecreators' ? credentials.scrapeCreators : provider === 'lightreel' ? credentials.lightreel : credentials.openai;
+    if (!apiKey) throw new Error('Missing provider credential');
     const raw = await context.call(key, provider, operation, async () => {
-      const apiKey = provider === 'scrapecreators' ? credentials.scrapeCreators : provider === 'lightreel' ? credentials.lightreel : credentials.openai;
       const r = await boundedJson(options.fetch, url, { method: body === undefined ? 'GET' : 'POST',
         headers: { ...(provider === 'scrapecreators' ? { 'x-api-key': apiKey } : { Authorization: `Bearer ${apiKey}` }),
           'Content-Type': 'application/json', Accept: 'application/json' }, body },
@@ -153,6 +156,8 @@ export function createCreatorPipelineProvider(options: CreatorPipelineAdapterOpt
       return buildRecommendations(dna, references, { newId: await receiptIds(research.id, 5), now: () => research.retrieved_at });
     },
     async generate(input, context) {
+      // Missing backend access must fail before any durable reservation or HTTP request.
+      if (!credentials.openai) throw new Error('Missing OpenAI provider credential');
       const dna = checkDna(input.dna);
       const batch = RecommendationBatch.parse(input.batch);
       const idea = batch.ideas.find(i => i.id === input.idea_id);

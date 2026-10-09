@@ -156,3 +156,33 @@ test('source rights predicate must approve the exact captured snapshot and versi
   await assert.rejects(p.recommend({ ...dna, snapshot_id: crypto.randomUUID() }, fakeGuard().context), /permission/);
   assert.equal(f.http.length, 0);
 });
+
+test('absent OpenAI credential permits scan/recommend but generation fails before any guard or HTTP call', async () => {
+  const f = providerHttpFixture();
+  const { openai: _openai, ...credentials } = f.options.credentials;
+  const provider = createCreatorPipelineProvider({ ...f.options, credentials });
+  const scanGuard = fakeGuard();
+  const analysis = await provider.scan(f.input.request, scanGuard.context);
+  const dna = projectCreatorDna({ dna_id: analysis.dna.id,
+    project_id: '00000000-0000-4000-8000-000000000100', analysis });
+  const recommendationGuard = fakeGuard();
+  const batch = await provider.recommend(dna, recommendationGuard.context);
+  assert.equal(batch.ideas.length, 1);
+  assert.equal(scanGuard.calls.length, 2);
+  assert.equal(recommendationGuard.calls.length, 2);
+  const generationGuard = fakeGuard();
+  let guardCalls = 0;
+  generationGuard.context.call = async () => { guardCalls++; throw Error('must not reserve'); };
+  const httpBefore = f.http.length;
+  await assert.rejects(provider.generate({ batch, idea_id: batch.ideas[0]!.id, dna }, generationGuard.context), /Missing OpenAI provider credential/);
+  assert.equal(guardCalls, 0);
+  assert.equal(f.http.length, httpBefore);
+});
+test('optional OpenAI does not relax required scan/recommend credentials', () => {
+  const f = providerHttpFixture();
+  for (const credentials of [{ scrapeCreators: '', lightreel: 'synthetic-lr' },
+    { scrapeCreators: 'synthetic-sc', lightreel: '' }]) {
+    assert.throws(() => createCreatorPipelineProvider({ ...f.options, credentials }), /Missing provider credential/);
+  }
+  assert.equal(f.http.length, 0);
+});

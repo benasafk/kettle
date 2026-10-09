@@ -66,8 +66,8 @@ schema, with IDs/envelope metadata supplied by the adapter rather than the model
 
 Factory: `createCreatorPipelineProvider(options)` in
 `packages/adapters/creator-pipeline/provider.ts`. Required inputs are injected fetch,
-three backend credential values supplied by trusted composition (never environment
-lookup in this module), an explicitly selected model/token ceiling/region, approved
+ScrapeCreators and Lightreel backend credentials supplied by trusted composition
+(never environment lookup in this module), an optional OpenAI backend credential, an explicitly selected model/token ceiling/region, approved
 source permission policy, and `canProcessDna`. The latter has no permissive default:
 the lead must resolve stored evidence for the exact captured DNA ID, snapshot ID and
 version, including user-corrected claims, before authorizing external processing.
@@ -154,3 +154,16 @@ reference, one idea and two script variants via five synthetic guarded requests;
 it explicitly reports zero live provider requests. Full `npm run check` passed: 180 TypeScript tests and 29 browser tests, plus
 build and local smoke. A final receipt-sanitization assertion brings the dedicated
 adapter count to 23; it and typechecking pass after that small hardening change. No hosted or actual ChatGPT verification is claimed.
+
+## Optional backend generation credential follow-up
+
+Scan/recommend construction no longer requires `credentials.openai`. ScrapeCreators
+and Lightreel credentials remain required. `generate` rejects an absent OpenAI key
+before permission processing, guard reservation or HTTP; it never substitutes a
+sentinel credential or another model/provider. ChatGPT browser access is not an
+OpenAI backend credential. The existing configured OpenAI generation path remains.
+
+Injected-mock coverage proves scan/recommend success without OpenAI and zero guard
+or HTTP calls when generation is requested without it. Credential requirement tests
+also retain rejection of missing ScrapeCreators/Lightreel keys. No live provider
+tests, paid requests, upgrades or runtime/contracts changes accompany this follow-up.
