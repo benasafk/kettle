@@ -102,6 +102,7 @@ export function mountCreatorPipeline(root: HTMLElement): {
     const active = doc.activeElement as HTMLElement | null;
     const hadFocus = !!active && content.contains(active);
     const focused = same && hadFocus ? active?.dataset.focus : undefined;
+    const hadDisclosures = !!content.querySelector('details');
     const open = new Set(same ? [...content.querySelectorAll<HTMLDetailsElement>('details[open]')].map(n => n.dataset.key) : []);
     dnaView?.dispose(); dnaView = undefined;
     const heading = el('h2', { scan: 'Creator scan', recommendations: 'Personalized ideas', scripts: 'Filming variants' }[job.kind]);
@@ -171,7 +172,7 @@ export function mountCreatorPipeline(root: HTMLElement): {
       content.append(el('p', 'Tell Kettle in chat which variant you want to refine. Opening a variant does not generate or save changes.', 'kc-notice'));
       outcome += ` ${scripts.variants.length} variants. Captured DNA version ${scripts.dna_version}.${scripts.contains_fixture_data ? ' Contains fictional test data.' : ''}`;
     }
-    if (same) for (const node of content.querySelectorAll<HTMLDetailsElement>('details')) node.open = open.has(node.dataset.key);
+    if (same && hadDisclosures) for (const node of content.querySelectorAll<HTMLDetailsElement>('details')) node.open = open.has(node.dataset.key);
     if (hadFocus) ([...content.querySelectorAll<HTMLElement>('[data-focus]')].find(n => n.dataset.focus === focused) ?? heading).focus({preventScroll: true});
     if (status.textContent !== outcome) status.textContent = outcome;
   }

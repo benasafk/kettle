@@ -1,3 +1,6 @@
+import { createPipelineOperations } from '../../packages/application/creator-pipeline.ts';
+import { createPipelineSupabaseRepository } from '../../packages/database/creator-pipeline-supabase.ts';
+import { dispatchCreatorJob, pipelineConfigured } from './creator-pipeline-runtime.ts';
 import { createCreatorOperations } from '../../packages/application/creator-operations.ts';
 import { createCreatorSupabaseRepository } from '../../packages/database/creator-supabase.ts';
 import { createOperations } from '../../packages/application/operations.ts';
@@ -16,7 +19,8 @@ export async function authServices(env: Env, config: AuthConfig) {
   const verifier = remoteVerifier(config, metadata, createSupabaseIdentityResolver(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
   const operations = createOperations(verifier, createSupabaseRepository(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
   const creatorOperations = createCreatorOperations(verifier, createCreatorSupabaseRepository(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
+  const pipelineOperations = createPipelineOperations(verifier, createPipelineSupabaseRepository(env.SUPABASE_URL!,env.SUPABASE_SERVICE_ROLE_KEY!), (id, accountId)=>dispatchCreatorJob(env,id,accountId),operation=>pipelineConfigured(env)&&operation!=='start_creator_scripts');
   const websiteVerifier = remoteVerifier(config, metadata, createSupabaseIdentityResolver(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!), config.clientId);
   const websiteOperations = createOperations(websiteVerifier, createSupabaseRepository(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
-  return { config, metadata, verifier, operations, creatorOperations, websiteVerifier, websiteOperations };
+  return { config, metadata, verifier, operations, creatorOperations, pipelineOperations, websiteVerifier, websiteOperations };
 }

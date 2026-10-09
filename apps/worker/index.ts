@@ -1,3 +1,5 @@
+import { reconcileCreatorDispatches } from './creator-pipeline-runtime.ts';
+export { CreatorPipelineWorkflow } from './creator-pipeline-runtime.ts';
 import { handleMcp } from './mcp.ts';
 import { website } from '../web/index.ts';
 import { authConfig, authServices } from './auth.ts';
@@ -6,6 +8,7 @@ import { handleWebsiteAuth, websiteAuthUnavailable } from '../../packages/auth/w
 export { FoundationWorkflow } from './workflow.ts';
 
 export default {
+  async scheduled(_event: ScheduledController, env: Env) { await reconcileCreatorDispatches(env); },
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const config = authConfig(env);

@@ -9,11 +9,12 @@ const repository = fileURLToPath(new URL('../', import.meta.url));
 /** No fixture or fallback component is emitted by this build. */
 export async function buildPanel(root = repository, kind = 'project') {
   const creator = kind === 'creator';
-  if (!['project', 'creator'].includes(kind)) throw new Error('Unknown panel');
-  const name = creator ? 'creator-review' : 'project-review';
-  const symbol = creator ? 'creatorReviewScript' : 'projectReviewScript';
-  const entry = resolve(root, creator ? 'apps/panel/creator-review-bridge.ts' : 'apps/panel/bridge.ts');
-  const component = resolve(root, `apps/panel/${name}.ts`);
+  const pipeline = kind === 'pipeline';
+  if (!['project', 'creator', 'pipeline'].includes(kind)) throw new Error('Unknown panel');
+  const name = pipeline ? 'creator-pipeline' : creator ? 'creator-review' : 'project-review';
+  const symbol = pipeline ? 'creatorPipelineScript' : creator ? 'creatorReviewScript' : 'projectReviewScript';
+  const entry = resolve(root, pipeline ? 'apps/panel/creator-pipeline-bridge.ts' : creator ? 'apps/panel/creator-review-bridge.ts' : 'apps/panel/bridge.ts');
+  const component = resolve(root, pipeline ? 'apps/panel/creator-pipeline/index.ts' : `apps/panel/${name}.ts`);
   const resource = resolve(root, `apps/worker/${name}-resource.ts`);
   const output = resolve(root, `apps/panel/generated/${name}-bundle.ts`);
   // Remove stale output even when a subsequent build fails.
@@ -62,7 +63,7 @@ export async function buildPanel(root = repository, kind = 'project') {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  for (const kind of ['project', 'creator']) {
+  for (const kind of ['project', 'creator', 'pipeline']) {
     const result = await buildPanel(repository, kind);
     console.log(result.status === 'built'
       ? `${kind} panel browser bundle: ${result.bytes} bytes.`

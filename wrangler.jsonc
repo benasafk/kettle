@@ -12,6 +12,11 @@
       "name": "kettle-foundation-check",
       "binding": "FOUNDATION_WORKFLOW",
       "class_name": "FoundationWorkflow"
+    },
+    {
+      "name": "kettle-creator-pipeline",
+      "binding": "CREATOR_WORKFLOW",
+      "class_name": "CreatorPipelineWorkflow"
     }
   ],
   "env": {
@@ -23,6 +28,11 @@
           "name": "kettle-stage2-development-check",
           "binding": "FOUNDATION_WORKFLOW",
           "class_name": "FoundationWorkflow"
+        },
+        {
+          "name": "kettle-stage2-development-creator",
+          "binding": "CREATOR_WORKFLOW",
+          "class_name": "CreatorPipelineWorkflow"
         }
       ],
       "secrets": {
@@ -33,7 +43,9 @@
           "AUTH_CLIENT_SECRET",
           "AUTH_SESSION_SECRET",
           "SUPABASE_URL",
-          "SUPABASE_SERVICE_ROLE_KEY"
+          "SUPABASE_SERVICE_ROLE_KEY",
+          "LIGHTREEL_API_KEY",
+          "SCRAPECREATORS_API_KEY"
         ]
       },
       "observability": {
@@ -43,6 +55,19 @@
           "enabled": true,
           "head_sampling_rate": 0.1
         }
+      },
+      "vars": {
+        "CREATOR_PIPELINE_ENABLED": "true",
+        "CREATOR_MODEL": "gpt-4.1-mini",
+        "CREATOR_SOURCE_PERMISSION_BASIS": "User-authorized bounded trial review of public TikTok metadata and relevant public references; no media download or visual analysis.",
+        "CREATOR_SCRAPE_CEILING_MICROUSD": "0",
+        "CREATOR_LIGHTREEL_CEILING_MICROUSD": "0",
+        "CREATOR_OPENAI_CEILING_MICROUSD": "0"
+      },
+      "triggers": {
+        "crons": [
+          "*/2 * * * *"
+        ]
       }
     }
   }
