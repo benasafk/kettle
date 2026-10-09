@@ -1,3 +1,4 @@
+import type { CreatorDnaView } from '../../../packages/contracts/creator-operations.ts';
 import type {
   CreatorAnalysis, ProfileScanResult, ProfileObservation, VideoObservation, DnaClaim,
 } from '../../../packages/contracts/creator-profile.ts';
@@ -7,6 +8,7 @@ import { creatorReviewStyles } from './styles.ts';
 export type CreatorReviewState =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
+  | { kind: 'saved'; dna: CreatorDnaView; preview: boolean }
   | { kind: 'scan'; scan: ProfileScanResult; preview: boolean }
   | { kind: 'analysis'; analysis: CreatorAnalysis; preview: boolean };
 
@@ -145,7 +147,7 @@ export function mountCreatorReview(root: HTMLElement): {
   function render(state: CreatorReviewState) {
     if (disposed) return;
     const scan = state.kind === 'analysis' ? state.analysis.scan : state.kind === 'scan' ? state.scan : undefined;
-    const nextIdentity = scan ? `${scan.id}:${scan.profile?.platform}:${scan.profile?.native_id}` : undefined;
+    const nextIdentity = state.kind === 'saved' ? `saved:${state.dna.dna_id}` : scan ? `${scan.id}:${scan.profile?.platform}:${scan.profile?.native_id}` : undefined;
     const same = !!identity && identity === nextIdentity;
     const open = new Set(same ? [...content.querySelectorAll<HTMLDetailsElement>('details[open]')].map(n => n.dataset.key) : []);
     const focused = same && content.contains(doc.activeElement) ? (doc.activeElement as HTMLElement).dataset.focus : undefined;
@@ -158,6 +160,52 @@ export function mountCreatorReview(root: HTMLElement): {
     if (state.kind === 'error') {
       content.append(el('p', state.message, 'kc-notice kc-text'), el('p', 'Ask Kettle in chat to reopen this review.', 'kc-meta'));
       status.textContent = 'Creator review unavailable.';
+      return;
+    }
+    if (state.kind === 'saved') {
+      const dna = state.dna;
+      const fictional = state.preview || dna.evidence.some(e => e.origin === 'fixture');
+      content.append(el('p', fictional ? 'Fictional preview · No live scan or saved changes.'
+        : 'Saved Creator DNA · Corrections are made through chat.', 'kc-notice'));
+      const review = el('section', undefined, 'kc-stack');
+      review.setAttribute('aria-label', 'Creator DNA');
+      review.append(el('h3', 'Creator DNA'), el('p', `${fictional ? 'Preview' : 'Saved'} version ${dna.version} · Created ${date(dna.created_at)}`, 'kc-meta'),
+        rows([['Scan', scanLabels[dna.scan_status]],
+          ['Video coverage', `${dna.coverage.unique_videos} unique videos returned · up to ${dna.requested_videos} requested`],
+          ['Oldest post', date(dna.coverage.oldest_published_at)], ['Newest post', date(dna.coverage.newest_published_at)]]),
+        notes('Limitations', dna.limitations),
+        el('p', 'To correct a trait, tell Kettle in chat which statement to change. This review does not save corrections.', 'kc-notice'));
+      if (dna.withheld_claim_count) review.append(el('p', `${dna.withheld_claim_count} traits withheld because source display permission is unavailable.`, 'kc-meta'));
+      if (!dna.claims.length) review.append(el('p', 'No displayable DNA traits supplied.', 'kc-meta'));
+      const byId = new Map(dna.evidence.map(e => [e.observation_id, e]));
+      for (const claim of dna.claims) {
+        const block = el('article', undefined, 'kc-claim');
+        block.append(el('h4', dimensions[claim.dimension]));
+        if (claim.evidence.some(e => !byId.has(e.observation_id))) {
+          block.append(el('p', 'Trait withheld: supporting evidence is unavailable.', 'kc-meta'));
+        } else {
+          block.append(el('p', basis[claim.basis], 'kc-basis'), el('p', claim.statement, 'kc-text'),
+            rows([['Method', claim.method], ['Uncertainty', claim.uncertainty]]));
+          const evidence = details(`Evidence (${claim.evidence.length})`, `claim-${claim.id}`);
+          if (!claim.evidence.length) evidence.append(el('p', 'User-supplied correction; no observation evidence attached.', 'kc-meta'));
+          for (const [i, ref] of claim.evidence.entries()) {
+            const o = byId.get(ref.observation_id)!;
+            const group = el('div', undefined, 'kc-observation kc-stack');
+            group.append(el('p', `Evidence ${i + 1} · ${ref.modality}${ref.start_seconds !== null ? ` · ${ref.start_seconds}–${ref.end_seconds} seconds` : ''}`, 'kc-meta'),
+              rows([['Published', date(o.published_at)], ['Retrieved', date(o.retrieved_at)], ['Source observed', date(o.source_observed_at)]]));
+            if (o.metrics) group.append(rows([['Views', number(o.metrics.views)], ['Likes', number(o.metrics.likes)],
+              ['Comments', number(o.metrics.comments)], ['Shares', number(o.metrics.shares)]]));
+            source(group, o.url, fictional || o.origin === 'fixture', `claim-${claim.id}-${i}`);
+            evidence.append(group);
+          }
+          block.append(evidence);
+        }
+        review.append(block);
+      }
+      content.append(review);
+      for (const node of content.querySelectorAll<HTMLDetailsElement>('details')) node.open = open.has(node.dataset.key);
+      if (focused) [...content.querySelectorAll<HTMLElement>('[data-focus]')].find(n => n.dataset.focus === focused)?.focus({ preventScroll: true });
+      status.textContent = `${fictional ? 'Preview' : 'Saved'} DNA version ${dna.version} shown.`;
       return;
     }
     // These branches deliberately accept only D0 entities, never a copied view schema.

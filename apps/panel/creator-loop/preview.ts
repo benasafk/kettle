@@ -5,6 +5,7 @@ const root = document.querySelector<HTMLElement>('#review')!;
 const view = mountCreatorReview(root);
 const scenario = document.querySelector<HTMLSelectElement>('#scenario')!;
 for (const name of scenarioNames) scenario.add(new Option(name, name));
+scenario.value = 'review';
 const params = new URLSearchParams(location.search);
 if (scenarioNames.includes(params.get('scenario') as Scenario)) scenario.value = params.get('scenario')!;
 function render() { view.render(fixtureState(scenario.value as Scenario)); }

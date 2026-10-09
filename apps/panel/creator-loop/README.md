@@ -122,3 +122,15 @@ On 2026-10-09 against `4a31f3c` plus this component:
 
 These are local fictional component results, not persisted/live-provider or hosted
 ChatGPT proof. A full shared-foundation check was not run for this isolated slice.
+
+## Storage-interface reconciliation (Bangkok review)
+
+Production Integration must use `{kind:'saved', dna: CreatorDnaView, preview:false}`
+from the validated authenticated `GetCreatorDnaOutput` or `CorrectCreatorDnaOutput`.
+This path consumes the filtered view from PR #20 and never requires internal scan
+or analysis envelopes. The earlier `scan`/`analysis` states are standalone fixture
+inspection paths; do not transmit internal data to ChatGPT to satisfy those props.
+Server-authorized saved state may be labelled saved; fixtures force preview labels
+and inert links. Bridge authorization, lineage/version validation and text fallback
+remain Integration-owned. The shared projection fixture is available as `saved`
+in the standalone preview. No public scan-job output is invented here.

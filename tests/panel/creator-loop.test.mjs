@@ -153,6 +153,20 @@ test('creator-loop read-only component acceptance', async t => {
       });
       assert.deepEqual(result, {loading:true,preserved:true,reset:true,cleared:true,unsafeLinks:0,safe:true,empty:true,calls:0});
     });
+    await t.test('filtered storage view renders without internal analysis and survives narrow/dark layout', async () => {
+      await scenario('saved');
+      assert.match(await dna.textContent(), /Preview version 1/);
+      assert.match(await review.textContent(), /Fictional preview/);
+      await dna.locator('summary').first().click();
+      assert.match(await dna.textContent(), /Likes0/);
+      assert.match(await dna.textContent(), /SharesUnknown/);
+      assert.doesNotMatch(await review.textContent(), /Biography|Provider|permission_basis|requested_cursor/);
+      assert.equal(await review.locator('a').count(), 0);
+      await page.setViewportSize({width:320,height:1100});
+      await page.selectOption('#theme','dark');
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await page.screenshot({path:`${captureDirectory}/saved-320-dark.png`,fullPage:true});
+    });
     assert.deepEqual(errors, []);
     assert.deepEqual(external, []);
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

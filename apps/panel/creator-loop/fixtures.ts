@@ -1,11 +1,13 @@
+import { creatorDnaViewFixture } from '../../../evals/creator-loop/dna-view-fixtures.ts';
 /** Preview/test only. Derived from merged D0 fictional fixtures; never production fallback. */
 import { CreatorAnalysis, ProfileScanResult } from '../../../packages/contracts/creator-profile.ts';
 import { creatorAnalysisFixture, partialScanFixture, unavailableScanFixture } from '../../../packages/contracts/fixtures/creator-profile.ts';
 import type { CreatorReviewState } from './index.ts';
 
-export const scenarioNames = ['review', 'partial', 'unavailable', 'failed', 'empty', 'long', 'hostile', 'withheld', 'loading', 'error'] as const;
+export const scenarioNames = ['saved', 'review', 'partial', 'unavailable', 'failed', 'empty', 'long', 'hostile', 'withheld', 'loading', 'error'] as const;
 export type Scenario = typeof scenarioNames[number];
 export function fixtureState(scenario: Scenario): CreatorReviewState {
+  if (scenario === 'saved') return { kind: 'saved', dna: creatorDnaViewFixture(), preview: true };
   if (scenario === 'loading') return { kind: 'loading' };
   if (scenario === 'error') return { kind: 'error', message: 'This creator review could not be opened.' };
   if (scenario === 'partial') return { kind: 'scan', scan: ProfileScanResult.parse(partialScanFixture()), preview: true };
