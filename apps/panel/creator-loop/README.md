@@ -134,3 +134,54 @@ Server-authorized saved state may be labelled saved; fixtures force preview labe
 and inert links. Bridge authorization, lineage/version validation and text fallback
 remain Integration-owned. The shared projection fixture is available as `saved`
 in the standalone preview. No public scan-job output is invented here.
+
+## Filtered-view accessibility/recovery review — Shanghai
+
+Reviewed actual merged saved rendering at `86f8327840a883347ddb8d00170d2bffb3d5de44`.
+Branch fast-forwarded without reset/rename; earlier local follow-up notes preserved.
+Production `CreatorReviewState` and mount/render/dispose exports remain unchanged.
+
+Component fixes from this review:
+
+- Saved evidence summaries visibly identify dimension and trait position; native
+  Enter/Space behavior is retained. Text is also present in Chromium's accessibility
+  snapshot, rather than relying only on an ARIA override for native summary.
+- Same-project/DNA updates retain open evidence and keyed focus. Removed/replaced
+  claims fall back to the Creator DNA heading; loading/error falls back to the review
+  heading only when focus was inside the removed content. External focus is untouched.
+- Identical saved-version status messages do not rewrite the live region. Error
+  announcements include the supplied safe recovery message. Historical versions are
+  labelled by version, never “latest”.
+- Filtered evidence exposes its fixture/provider origin, explains a null metrics set,
+  and keeps zero/unknown distinct. The explicit coverage_limited flag is shown even
+  when limitations are empty. Missing references still withhold the entire claim.
+
+Validation: panel TypeScript check passed; both dedicated creator browser suites
+passed (12 tests including two parent groups); fixture-schema test passed (1 test).
+New filtered-view cases cover keyboard/accessible text, correction focus fallback,
+project identity changes, no repeated status mutation, missing/withheld evidence,
+error/loading clearing, external focus, 320/640 light/dark, long text, 200% text,
+hostile text and disposal. Zero browser errors/external requests. Initial assertions
+failed on the merged baseline before the component fixes. This is local fixture proof.
+Repeat: `node --test tests/panel/creator-loop-saved.test.mjs`.
+Captures: `.context/creator-loop-saved-review/{320,640}-{light,dark}.png`.
+
+### Integration coordination — no interface change required
+
+Berlin can continue saved-view wiring. Consume only the authorized filtered public
+output. Supply `preview:true` for fixture paths even when no evidence remains (e.g.
+all traits withheld); per-evidence fixture origin also forces preview. Raw fixture
+inspection states are not a production fallback. No additional shared fields needed.
+
+The current error state accepts a safe message, not a Failure object. Berlin should
+map reauthorization to an explicit reconnect message, conflict to reopening current
+DNA before correcting in chat, and denied/not-found to nondisclosing unavailable copy.
+Rendering error/loading clears private output; account changes require dispose/remount.
+No component change adds retry, writes, generation, or an optimistic saved snapshot.
+Berlin remains responsible for request/identity/version correlation, historical reads,
+text fallback and auth clearing. Source evidence links are display links, not fetches.
+
+Manual VoiceOver announcements, Safari/Firefox, actual ChatGPT focus/theme/CSP and
+cross-chat recovery remain Integration/host acceptance work. There is no new blocker
+for Berlin's saved-view wiring. Bangkok reviews/merges the component-only follow-up;
+no shared contracts/build/runtime, bridge, provider or deployment changes are included.
