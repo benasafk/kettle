@@ -1,3 +1,4 @@
+import { topicalContextFallback } from './topical-context.ts';
 import { CreatorAnalysis, ProfileScanResult, type DnaClaim, type VideoObservation } from '../../contracts/creator-profile.ts';
 
 /** Conservative deterministic baseline. Does not execute captions, fetch media,
@@ -49,6 +50,10 @@ export function buildGroundedCreatorDna(rawScan: unknown, options: {
       'inferred', matches, 'caption', 'Tentative intended-audience hypothesis from repeated caption topics.',
       'No follower demographics, interests or purchase intent were observed. User confirmation is needed.');
   }
+  if (!claims.some(c => c.dimension === 'topics')) {
+    const context = topicalContextFallback(scan.profile_observations, videos, newId);
+    if (context) claims.push(context);
+  }
   const questions = captions.filter(o => /^[^.!?]{1,200}\?/.test(o.caption!));
   add('hooks', `${questions.length} eligible captions begin with a question.`, 'observed', questions, 'caption',
     'Question punctuation near the beginning of the caption.',
@@ -75,9 +80,9 @@ export function buildGroundedCreatorDna(rawScan: unknown, options: {
   }
   return CreatorAnalysis.parse({ scan, dna: {
     id: options.id, profile: scan.profile, version: 1, created_at: options.created_at,
-    source_scan_id: scan.id, analyzer_version: 'deterministic-caption-metadata-v1', taxonomy_version: 'creator-dna-v1',
+    source_scan_id: scan.id, analyzer_version: 'deterministic-caption-metadata-v2', taxonomy_version: 'creator-dna-v1',
     claims, limitations: [
-      'Small deterministic English caption/metadata baseline; not a model or validated recommendation engine.',
+      'Small English keyword baseline with an attributed source-excerpt fallback; not a semantic classifier or validated recommendation engine.',
       'Actual audience, visual hooks, formats, showcase, structure and pacing remain unknown; no video analysis was performed.',
       'Duplicate videos contribute once, using latest source-observed time when present, otherwise retrieval time; ties use observation ID.',
       'Unknown observation freshness and incomparable publication ages prevent causal or normalized performance conclusions.',
