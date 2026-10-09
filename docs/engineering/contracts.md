@@ -205,3 +205,71 @@ Next contract increments: owned associations and repository operations, durable 
 and spend reservation/settlement, recommendation batches/selection, then script
 variants. Their public names, scopes, lifecycle rules and migrations are not frozen
 by this first D0 slice. Auth's proposed new scopes remain proposals.
+
+## D0 persistence and authenticated operation seam — 2026-10-09
+
+`packages/contracts/creator-operations.ts` and
+`packages/application/creator-operations.ts` add the next internal integration seam:
+
+- `createCreatorOperations(verifier, repository).execute('get_creator_dna', credential,
+  {dna_id, version?})` returns `{ok:true,data:{dna:CreatorDnaView}}` or `Failure`.
+- `execute('correct_creator_dna', credential, {dna_id, expected_version, request_id,
+  corrections:[{claim_id,statement}]})` returns the new view plus `request_id`.
+- `createCreatorIngestion(repository)(accountId, {project_id, request_id, analysis})`
+  is a **trusted server-only seam**, not a public operation. Bind account/project to
+  authorized durable work before calling it. Clients cannot submit arbitrary analyses
+  or supply account IDs. Ingestion validates aggregate lineage and storage permission.
+
+Reads use `projects:read`, corrections use `projects:write`: this increment stores
+analyses as resources owned by an existing project/account. These operations do not
+request research, model calls or any external spending. No new OAuth scopes/tenant
+settings are added. Future paid starts need separate authorization/budget policy.
+Every public execute call verifies identity and scope, including receipt replay; SQL
+also checks active account status. Private reads use explicit IDs; no global lookup
+by social URL exists. A supplied profile never establishes social ownership.
+
+`dna_id` is the stable analysis/association ID (initial DNA ID); `snapshot_id` changes
+on each correction. The underlying D0 snapshot `id` names that immutable snapshot.
+An association belongs to exactly one project/account and one scan. New scans create
+new associations in this slice; rescan/replacement semantics and listing are deferred.
+Corrections target current claim IDs, generate new claim IDs, link prior claims and
+retain evidence. They append snapshots without replacing earlier versions. A historical
+read accepts a version; missing and foreign IDs/versions both return NOT_FOUND.
+
+Migration `20261009160000_creator_dna.sql` adds `creator_profiles`, `creator_scans`,
+`creator_dna_versions` and `creator_write_receipts`. Scan JSON contains dated immutable
+observations; separate observation/classification/search tables are deferred until
+corpus work requires them. Composite ownership foreign keys prevent mixed-account
+parent links. Service-role operations use one transaction and the existing per-account
+lock discipline. RLS has no client policies; client roles cannot call the RPCs or read
+these tables. Service role cannot update/delete scan/history/receipt rows.
+
+Creator request receipts share an account/request-ID namespace across ingest and
+correction, separate from v1 project receipts. Exact replay returns its original
+snapshot after reauthorization; changed operation/payload conflicts. Stale new writes
+conflict. Invalid/denied writes insert no receipt. Receipt-insertion failure rolls
+back history and the current-version pointer atomically. No remote migration/reset is
+performed by adding this file.
+
+`CreatorDnaView` is the allowlisted card/model projection. It includes stable IDs,
+version, profile identity, bounded coverage, claims and referenced display-permitted
+source links/dates/metrics. It excludes account IDs, raw captions/bios, provider endpoint,
+permission/retention notes, pagination cursors, raw errors and attempt/cost records.
+Claims derived from any non-displayable observation are withheld as a whole; a count
+and generic explanation are returned. Provider free-text scan limitations are not
+forwarded. Claim text/method/uncertainty remains untrusted text, to be rendered inert.
+Stored permissions are the recorded basis, not a live legal/retention-policy service;
+revoked-source and retention expiry handling still need a later lifecycle design.
+
+Integration should consume `creatorContracts` and `CreatorDnaView`, not register
+internal analysis ingestion or serialize `StoredCreatorAnalysis`. This increment
+provides the factory and HTTPS PostgREST adapter in `creator-supabase.ts`, but does
+not wire Worker routes, MCP resources or hosted secrets. Wire with the existing real
+verifier only after the migration is separately applied to an authorized environment.
+UI can now build the read/corrected/historical states against this public projection.
+Durable scan jobs, provider execution, cancellation and spending settlement are the
+next backend increment, not implemented here.
+
+For the first UI/Integration slice, import `creatorDnaViewFixture()` from
+`evals/creator-loop/dna-view-fixtures.ts`; it uses the real projection over authored
+D0 data. This helper is preview-only and must not be imported by Worker runtime code.
