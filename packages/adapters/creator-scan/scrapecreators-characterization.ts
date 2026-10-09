@@ -10,7 +10,9 @@ const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).nullis
 const text = z.string().max(10_000).nullish().transform(value => value ?? null);
 const profile = z.object({
   success: z.literal(true),
-  user: z.object({ id, uniqueId: z.string().min(1).max(100), signature: text,
+  credits_charged: count,
+  user: z.object({ id, uniqueId: z.string().regex(/^[\w.]{1,100}$/), signature: text,
+    nickname: z.string().max(500).nullish(),
     privateAccount: z.boolean().optional() }),
   stats: z.object({ followerCount: count }).nullish(),
 });
@@ -18,7 +20,7 @@ const video = z.object({
   aweme_id: id,
   author: z.object({ uid: id }),
   desc: text,
-  create_time: count,
+  create_time: count.refine(value => value === null || value <= 253402300799),
   statistics: z.object({ play_count: count, digg_count: count,
     comment_count: count, share_count: count }).nullish(),
   // Keep provider units here; D0 normalization owns conversion/validation.
@@ -44,7 +46,8 @@ export function characterizeProfile(body: string) {
     if (!parsed.success) return { kind: 'malformed' as const };
     const value = parsed.data;
     return { kind: value.user.privateAccount ? 'private' as const : 'available' as const,
-      user: value.user, followerCount: value.stats?.followerCount ?? null };
+      user: value.user, followerCount: value.stats?.followerCount ?? null,
+      credits: value.credits_charged };
   } catch { return { kind: 'malformed' as const }; }
 }
 
@@ -69,13 +72,15 @@ export function characterizeFeed(input: {
   const uniqueIds = new Set<string>();
   const cursors = new Set<string>();
   const credits: (number | null)[] = [];
+  const pages: { requested_cursor: string | null; returned_cursor: string | null;
+    received_items: number; admitted_observations: number; has_more: boolean | null }[] = [];
   let attempts = 0;
   let rejected = 0;
   let duplicates = 0;
   let requestedCursor: string | null = null;
   const finish = (stop: string) => ({ evidence: 'authored_fixture_replay' as const,
     profile: parsedProfile, observations, uniqueIds: [...uniqueIds], attempts,
-    rejected, duplicates, credits, nextCursor: requestedCursor, stop,
+    rejected, duplicates, credits, pages, nextCursor: requestedCursor, stop,
     // Even an exhausted feed does not establish an exhaustive profile inventory.
     profileComplete: false as const, visualAnalysis: 'not_performed' as const });
   if (parsedProfile.kind !== 'available') return finish(parsedProfile.kind);
@@ -93,6 +98,10 @@ export function characterizeFeed(input: {
     try { result = page.parse(json(attempt.body)); }
     catch { return finish('malformed_page'); }
     credits[credits.length - 1] = result.credits_charged;
+    const pageEvidence = { requested_cursor: attempt.requestedCursor,
+      returned_cursor: result.max_cursor ?? null, received_items: result.aweme_list.length,
+      admitted_observations: 0, has_more: result.has_more === undefined ? null : Boolean(result.has_more) };
+    pages.push(pageEvidence);
     for (const raw of result.aweme_list) {
       const parsed = video.safeParse(raw);
       if (!parsed.success || parsed.data.author.uid !== parsedProfile.user.id) {
@@ -100,6 +109,7 @@ export function characterizeFeed(input: {
         continue;
       }
       const item = parsed.data;
+      if (observations.length >= 150) return finish('observation_limit');
       if (uniqueIds.has(item.aweme_id)) duplicates++;
       else if (uniqueIds.size >= maxVideos) return finish('video_limit');
       uniqueIds.add(item.aweme_id);
@@ -109,6 +119,7 @@ export function characterizeFeed(input: {
           play_count: null, digg_count: null, comment_count: null, share_count: null,
         },
       } });
+      pageEvidence.admitted_observations++;
     }
     if (result.has_more === false || result.has_more === 0) return finish('feed_exhausted');
     // Official sample lacks has_more; do not invent an exhausted-feed assertion.
