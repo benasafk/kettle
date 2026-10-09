@@ -23,6 +23,7 @@ export const CreatorDnaView = z.strictObject({
   version: z.number().int().positive(), created_at: Timestamp,
   source_scan_id: Id, scan_status: ProfileScanResult.shape.status,
   coverage: ProfileScanResult.shape.coverage.pick({ unique_videos: true, oldest_published_at: true, newest_published_at: true }),
+  contains_fixture_data: z.boolean(),
   requested_videos: z.number().int().positive(), coverage_limited: z.boolean(),
   claims: CreatorDnaSnapshot.shape.claims,
   evidence: z.array(CreatorEvidenceView).max(170),

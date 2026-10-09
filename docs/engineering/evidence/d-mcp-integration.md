@@ -6,6 +6,212 @@ Branch inspected: `gustasbull/chatgpt-mcp-v1`; clean before fast-forward from
 `4790956`. No reset, rename, discarded edits or copied workspace credentials.
 The PR head is recorded in the PR handoff rather than a self-referential commit ID.
 
+## Saved-view component wiring on canonical UI baseline — 2026-10-09
+
+Merged canonical `86f8327840a883347ddb8d00170d2bffb3d5de44` into the unchanged
+`gustasbull/chatgpt-mcp-v2` branch, preserving `93ce207` and `dafb039`. The previous
+UI gate below is resolved. Production host delivery remains unwired.
+
+`apps/panel/creator-review.ts` exports `mountSavedCreatorReview(root, readDna,
+timeoutMs?)`. It consumes Shanghai's exact `mountCreatorReview` export and renders
+only `loading`, `error`, or `{kind:'saved',dna,preview:false}`. Fictional evidence
+still forces the component's preview banner/inert links. No internal scan/analysis
+states or local component implementation are used.
+
+The adapter returns `receiveInput`, `receiveResult`, `connected`, `refresh`,
+`connectionFailed`, and `dispose`. Future host composition must pass parsed tool
+arguments to `receiveInput`, authenticated **operation output** (the structured
+content, not the MCP envelope) to `receiveResult`, and a callback that invokes only
+`get_creator_dna`. Account/connection changes require disposal and a fresh mount.
+Neither this adapter nor the controller automatically mounts or executes a read.
+
+The merged UI has no action callbacks or refreshing/warning props. Therefore refresh
+is an explicit adapter method, not a new UI button. Saved content remains readable
+without host read capability. A stale-response/timeout warning uses the supported
+error/reopen view instead of silently presenting stale content; explicit retry through
+the adapter can restore the saved view. Shanghai owns any later refresh controls or
+stale-data presentation change. No UI file was edited here.
+
+New `tests/panel/creator-review-integration.test.mjs` bundles the actual adapter and
+component with a test-only public fixture entry using existing esbuild. Chromium
+checks initial render without duplicate reads, explicit single-flight refresh and
+focus/disclosure retention, auth clearing with late completion, timeout/retry, missing
+host capability, wrong-ID rejection, and disposal. The loopback page's CSP blocks
+network connections and remote assets; no unexpected requests or browser errors.
+It is a local component integration test, not an MCP host, Worker resource or ChatGPT
+rendering test. No provider output or real account data is used.
+
+Integration sequence for Bangkok after this PR:
+
+1. Review the proposed bundle/resource names in the prior handoff. Lead supplies
+   approved build entry and authenticated `createCreatorOperations` composition.
+2. A subsequent Berlin PR may bind the MCP Apps transport, resource and read-only
+   tool after the composition lands. Preserve the existing shared descriptor/schema
+   workaround and text fallback using `creatorDnaText` over the public output.
+3. Run real resource/transport/auth isolation tests, then separately authorized
+   ChatGPT acceptance. This PR does not register tools or implement that bridge.
+
+Validation: dedicated Chromium adapter suite passed 6/6 checks (parent plus five
+cases). `npm run check` passed: both TypeScript projects, 148 TypeScript tests,
+dry-run Worker bundle, local workerd smoke, and 15 browser checks.
+`git diff --check` passed. These are local/fixture results, not hosted evidence.
+No mutations, scans/jobs, provider calls, dependencies, shared configuration, auth
+composition or deployment changed. Existing project-review code is untouched.
+
+## Executable read controller on PR #20 baseline — 2026-10-09
+
+Merged `origin/main` at `26aa6bc` into the existing `gustasbull/chatgpt-mcp-v2`
+branch, retaining `93ce207` and all history. Working tree was clean before the merge.
+The earlier missing-operation statements below are historical: PR #20 now provides
+`createCreatorOperations`, `creatorContracts`, `GetCreatorDnaInput/Output` and the
+permission-filtered `CreatorDnaView`. No shared file was edited by Berlin.
+
+Implemented `apps/panel/creator-review-controller.ts` and focused tests under
+`tests/panel/creator-review-controller.test.ts`. Controller accepts operation results
+and a read callback only. It imports public schemas directly, validates selection and
+result IDs, binds project/profile/scan identity, compares versions within a stable
+`dna_id`, and preserves explicitly requested historical versions. `snapshot_id`
+changes with corrections; scans/association identity do not. No job state is inferred.
+
+Refresh is explicit, single-flight and bounded to ten seconds. A new selection/result,
+auth failure or disposal invalidates pending reads. Old/lower results cannot overwrite
+a newer view; changing to an explicit historical selection resets its version domain.
+Auth, malformed output and unclassified host errors clear private data and require
+remount/reopen. A transient refresh failure may retain a labelled previous view.
+A tools-unavailable host retains valid content with refresh unavailable.
+
+`creatorDnaText` serializes the complete validated public operation result, including
+failures, unknown metrics, limitations and withheld-claim counts. Extra internal
+fields fail validation. It is not yet wired to MCP. Only the public fixture factory
+from `evals/creator-loop/dna-view-fixtures.ts` is used by the new tests; no internal
+stored/ingestion payload is imported into runtime/controller code.
+
+The observer callbacks describe lifecycle events, not a duplicate UI state union or
+business schema. The later adapter will map them to Shanghai's exact component state.
+No component import, resource, tool registration, mutation callback, timer polling,
+provider call, credential persistence or Worker auth composition has been added.
+
+Bundle proposal sent to [Bangkok on PR #20](https://github.com/gustasbull/kettle/pull/20#issuecomment-6082094888):
+entry `apps/panel/creator-review-bridge.ts`, artifact
+`apps/panel/generated/creator-review-bundle.ts`, export `creatorReviewScript`, resource
+module `apps/worker/creator-review-resource.ts`, URI `ui://kettle/creator-review-v1.html`.
+These names remain proposals; Bangkok owns build/runtime composition. The existing
+project-review entry/resource are unchanged.
+
+UI #19 is still open at `be5689c` at this checkpoint. Bangkok's announced saved-view
+export (`mountCreatorReview.render({kind:"saved",dna:CreatorDnaView,preview:false})`)
+will be consumed after its merge and exact API inspection, not copied from an
+unapproved branch. First implementation PR will open once that export lands.
+
+Validation: panel build passed (534861 bytes); browser TypeScript project passed.
+`npx --no-install tsx --test tests/panel/creator-review-controller.test.ts tests/project-review-bridge.test.ts tests/project-review-mcp.test.ts`
+passed 46/46 tests (21 new controller/text cases and 25 existing project-review cases).
+`git diff --check` passed. No actual ChatGPT, hosted permissions,
+provider or paid-job proof is claimed. Existing lead tests establish application
+filtering/persistence independently; controller fixtures prove only client lifecycle.
+
+## Read-only scan/DNA slice after merged D0 — 2026-10-09
+
+Follow-up baseline: `4a31f3c`. Current branch `gustasbull/chatgpt-mcp-v2` was
+already synchronized and clean; no rename/reset/stash was performed. Shared D0
+contracts landed through PR #17 (`3fccb85`, follow-up `4dc22c6`); Shanghai's inventory
+landed through PR #16. The original proposal below remains future planning. This
+section narrows the next executable slice and takes precedence for its scope.
+
+### What is available, and what is not
+
+Import from `packages/contracts/creator-profile.ts`; fictional inputs come from
+`packages/contracts/fixtures/creator-profile.ts`. No copied business schemas.
+
+| Merged definition | Integration implication |
+| --- | --- |
+| `ProfileScanResult` | Result statuses are exactly complete, partial, unavailable, failed. These are not job lifecycle states. It has an ID and creation time but no version/status revision; do not compare timestamps as versions or invent queued/running states. |
+| `CreatorDnaSnapshot` | Positive version is scoped to DNA ID. Validate profile identity as platform + native ID and bind `source_scan_id`; handle/URL does not establish identity or ownership. |
+| `CreatorAnalysis` | Validates scan/profile/DNA/evidence lineage and analysis permissions. Snapshot-only validation is insufficient at the internal analysis boundary. |
+| `CorrectCreatorDnaInput` | Exists as an internal correction contract; does not authorize a public tool, application operation or correction control. Excluded from this read-only slice. |
+| Fixture functions | `creatorAnalysisFixture`, `partialScanFixture`, `unavailableScanFixture` provide internal fictional data; they do not represent authorized public outputs. |
+
+**Still missing:** authenticated application read operations, their input/output
+schemas and adopted scopes, permission-safe output projection, and exact Shanghai
+component exports. `packages/application/operations.ts` still executes only the
+existing `toolContracts`. No creator-loop component directory/export exists on this
+baseline. Therefore no production controller can yet bind the intended interfaces.
+
+`CreatorAnalysis` is explicitly internal: analysis can use evidence without display
+permission, and raw scans carry cost attempts, pagination cursors and provenance.
+A schema-valid internal analysis must not be assumed safe for either UI or model-visible
+text. Bangkok owns projection/redaction and cross-account enforcement; Berlin will
+validate the resulting shared output rather than implement a local allowlist or cast
+internal analysis into a public response. How redacted evidence affects claim lineage
+must be specified in that output contract.
+
+### Controller and test structure ready for interface implementation
+
+Proposed owned files (not created as empty/throwaway placeholders):
+
+- `apps/panel/creator-review-controller.ts`: host-independent read lifecycle using
+  imported operation outputs and Shanghai presentation types. No UI component,
+  business schema, job state machine, transport, mutation callback or polling.
+- `tests/panel/creator-review-controller.test.ts`: deferred-read/fake-time tests,
+  already covered by the existing browser TypeScript project and test discovery.
+- Later dedicated bridge/resource/MCP tests follow only after Bangkok approves
+  wiring and resource build entries. The controller itself must not be imported by
+  the current project-review entry until its own integration is ready.
+
+Controller dependencies will be authenticated read callbacks supplied by the bridge,
+Shanghai's render callback, and a bounded read deadline. Exact TypeScript signatures
+wait for the imported output and component types. Public methods will receive a
+validated selection/result, report host read capability/connection failure, request
+explicit refresh, and dispose. Method spelling is not an agreed export yet.
+
+Behavior/test pairs to implement in that file:
+
+| Test group | Controller rule / observable assertion |
+| --- | --- |
+| Launch and capability | Validate operation envelope before render; launching result causes zero duplicate reads. Missing serverTools preserves already authorized readable content and exposes chat fallback/disabled refresh through Shanghai's availability field. |
+| ID/source lineage | Reject response for another selected scan/DNA ID, profile platform/native ID or source scan. Validate with merged public output schema; raw analysis is never used as a shortcut around permission projection. |
+| DNA ordering | Track high-water version per DNA ID within current view epoch; accept equal/newer, ignore lower. Switching DNA IDs invalidates pending work and resets that entity's comparison context. Conflicting equal-version payload handling needs the immutable snapshot guarantee from Bangkok. |
+| Scan ordering | Correlate reads to selected scan ID and local request epoch. No synthetic scan version or ordering of result statuses. Bangkok must confirm immutable scan results or provide an authoritative ordering mechanism before mutable scan refresh is supported. |
+| Refresh | One explicit read at a time; duplicate clicks cause one call. A 10-second proposed deadline aborts waiting; a transport ignoring abort still cannot publish late output. Refresh/reopen invoke no start, correction, dispatch or provider calls. |
+| Invalidation | New selection/result, auth/connection failure and disposal invalidate in-flight responses. Late success after auth clearing cannot restore content. Page source filtering belongs to subsequent real transport tests, not a fake controller security claim. |
+| Auth/error clearing | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, invalid envelope and unknown host rejection clear private snapshots. Recognized transient read timeout may retain the last authorized result with warning and explicit retry. Do not infer D error envelopes from v1 until adopted. |
+| Partial/unavailable | Preserve exact scan status, unknown metrics, coverage and limitations. Do not derive DNA from partial data client-side or turn unavailable into an empty successful DNA result. |
+| Text parity | Test the complete permission-safe public result through the eventual MCP text serializer; include IDs/versions needed for reopen, claims/evidence permitted for display and limitations. No separate provider-to-text projection or raw JSON of internal analysis. |
+| Disposal | Cancel deadlines/requests, ignore late results, emit no further render/read. Component and host teardown remain their respective owners' responsibility. |
+
+Fixtures for these tests will reuse the merged internal fixture factories through
+Bangkok's fixture/projection seam, or use his public fixture exports when available.
+No locally invented success/error envelope or permissive fake operation is introduced.
+Application integration must separately prove zero writes/dispatch/provider calls on
+reads and account A/B isolation; a controller mock cannot prove those properties.
+
+### Coordination sent and first executable PR gate
+
+Requests sent to [Bangkok on PR #17](https://github.com/gustasbull/kettle/pull/17#issuecomment-6081816063)
+and [Shanghai on PR #16](https://github.com/gustasbull/kettle/pull/16#issuecomment-6081816590).
+These are pending requests, not approvals or received interfaces.
+
+Bangkok: provide operation/export commit, scopes, display projection, scan immutability,
+DNA latest/exact-version semantics, whether DNA ID denotes stable lineage or an
+immutable snapshot, and permitted-evidence lineage. Version comparison across
+corrections must follow that adopted identity rule, not assume unchanged IDs. Shanghai: provide
+exact scan/DNA module/export names, render/dispose types and `onRefresh` signature,
+including action availability and private-content clearing. Read-only components
+need no mutation, start, cancellation or generation callbacks in this increment.
+
+When both seams are available, implement the controller and focused tests in a small
+PR; public registration still waits for merged authenticated operations and safe
+outputs. No dependency/build changes, current project-review edits or deployment
+are needed for this preparation.
+
+Follow-up validation: `npm run build:panel` passed (534861 bytes). Running
+`npx --no-install tsx --test tests/creator-profile-contracts.test.ts tests/project-review-bridge.test.ts tests/project-review-mcp.test.ts`
+passed 35/35 existing tests: ten D0 contract checks and 25 project-review checks.
+`git diff --check` passed. These establish the existing local contract/regression
+baseline, not a new D controller, authenticated D operation, or actual host proof.
+Only this plan changed. The executable PR waits for the two interface commits;
+no placeholder implementation or passing mock of a missing operation is shipped.
+
 ## Operation and metadata proposal
 
 Names below are discussion labels, not registrations. Bangkok owns final names,
@@ -229,3 +435,71 @@ authorization and behavior-based annotations; they do not approve Kettle's propo
 operation names, polling policy or spending. Installed baseline is ext-apps 1.7.5,
 MCP SDK 1.32.1; existing bridge uses App/PostMessageTransport, serverTools capability,
 AbortSignal/deadlines and explicit resize cleanup. No upgrade is assumed.
+
+## Read-only MCP bridge/resource follow-up — 2026-10-09
+
+Bangkok approved the production entry/resource names and requested bridge work while
+retaining ownership of shared build, MCP registration and auth composition. Incorporated
+shared flag commit `0e5324516fc3948d22f36cd63e77f3455c77475f` (including merged PRs 21–23)
+by fast-forward on the existing branch, preserving all previous integration commits.
+
+Owned exports for lead wiring:
+
+- `apps/panel/creator-review-bridge.ts`: browser entry auto-mounts `#root`;
+  `mountCreatorReviewBridge(root)` returns `{ refresh, dispose }`. It consumes
+  `mountSavedCreatorReview`, accepts only validated `GetCreatorDnaOutput` from
+  `structuredContent`, preserves `contains_fixture_data`, and uses only
+  `get_creator_dna` with the exact selected `GetCreatorDnaInput` for explicit reads.
+- `apps/worker/creator-review-resource.ts`: `registerCreatorReviewResource(server)`,
+  `CREATOR_REVIEW_URI`, `CREATOR_REVIEW_MIME`, `CREATOR_REVIEW_META`, `creatorReviewHtml`.
+  URI is `ui://kettle/creator-review-v1.html`; MIME is `text/html;profile=mcp-app`.
+  Static resource imports `creatorReviewScript` from the approved generated module;
+  script escaping and empty network/asset/frame/base-URI CSP follow project review.
+- Lead registers `render_creator_dna` with `GetCreatorDnaInput`, executes the authenticated
+  filtered operation and supplies complete text plus structured output. Lead retains
+  ownership of scopes/challenges, tools/list consistency, SDK output-schema workaround,
+  and `authServices.creatorOperations` composition. This follow-up registers no tools.
+
+No mount-time reads, polling, provider calls, corrections, jobs, credentials, storage,
+or model-context writes. Parent WindowProxy filtering uses the installed SDK transport.
+Handlers precede connect; initialization and reads are bounded. The controller deadline
+precedes the SDK hard deadline so timeout recovery retains the explicit retry path.
+Auth failures and invalid envelopes clear the UI; late responses cannot restore it.
+Resize observers/frames and requests are cleaned up on pagehide or host teardown;
+teardown is acknowledged before closing. Host CSS/fonts are not injected.
+
+The component currently has no Refresh callback/button. The bridge exposes explicit
+`refresh()` for the future UI seam; users currently reopen via `render_creator_dna`
+in chat. No competing inline control was implemented. Text fallback remains a server
+registration responsibility, using the full filtered public output (the controller's
+`creatorDnaText` tests cover completeness).
+
+Validation uses real ext-apps 1.7.5 / MCP SDK 1.32.1 and the real UI in Chromium under
+a local parent-frame fixture, plus an in-memory SDK resource client/server. It proves
+handshake, parent-source rejection, no automatic reread, exact read selection, duplicate
+suppression, timeout/retry/late-response behavior, auth clearing, no-tools display,
+missing-handshake recovery, top-level rejection, theme/locale, size notifications and
+teardown cleanup. Resource tests cover list/read metadata, the real static script and
+HTML escaping; envelope tests reject text/private-meta fallback and contradictory errors.
+Existing controller tests continue covering IDs, versions and complete text fallback.
+
+Shared build wiring is intentionally pending: for local validation only, an ignored
+`.context/d-integration/build-creator.mjs` invokes existing esbuild on the real entry and
+writes the approved ignored generated artifact. No stub or generated bundle is committed.
+A clean checkout needs Bangkok's creator build hook before tests/typecheck/runtime import
+of the new resource. The normal project build hook remains untouched.
+
+Rechecked official [OpenAI UI documentation](https://developers.openai.com/plugins/build/chatgpt-ui)
+and [MCP App API](https://apps.extensions.modelcontextprotocol.io/api/classes/app.App.html)
+against installed APIs. These checks and local iframe tests are not actual ChatGPT proof.
+Remaining lead/host checks: combined shared build and Worker resource routing, authenticated
+render/read tool metadata and second-account denial, hosted resource rendering and refresh
+or reopen after corrections, token revocation, no-UI complete text, and persisted fictional
+labels after Shanghai's follow-up. No deployment or hosted mutations performed.
+
+Final local validation after incorporating `0e53245`: `npm run check` passed with
+154 TypeScript tests, 28 browser checks, both TypeScript projects, Worker dry-run build
+and local workerd smoke. The manually generated real Creator DNA artifact was 552,566
+bytes. Logs: `.context/d-integration/bridge-final-check.log` (workspace-local).
+`git diff --check` passed. These results require the local artifact step described above;
+they do not claim the pending shared build hooks or Creator DNA Worker routing are proven.

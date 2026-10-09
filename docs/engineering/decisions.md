@@ -166,3 +166,15 @@ chat/tool operations, not an inline editor. See the persistence section of
 [contracts](contracts.md) for integration exports, receipt namespace and limits.
 The migration is additive and unapplied to hosted development. Runtime wiring,
 job orchestration, source-retention enforcement and live proof remain subsequent work.
+
+## Saved Creator DNA ChatGPT delivery — 2026-10-09
+
+The user requested continued implementation and testing through the existing Kettle
+plugin. Lead integrates authenticated `get_creator_dna`, `render_creator_dna` and
+`correct_creator_dna` using the existing read/write project scopes. The render tool
+aliases the read operation; only it links the dedicated static card resource.
+No public ingestion or fixture-auth endpoint is introduced. The filtered view adds
+`contains_fixture_data` so source origin cannot disappear after all traits are corrected.
+A clearly labelled persisted fictional record supports the first development test;
+provider scans and the full recommendation/script journey remain separate work.
+See the [development proof runbook](evidence/d-chatgpt-development.md).
