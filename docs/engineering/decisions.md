@@ -1,5 +1,17 @@
 # Stage 1 decisions and open dependencies
 
+## Full-product roadmap and creator-loop proposal — 2026-10-09
+
+The user relayed Generation's profile-analysis and recommendation-loop context for
+planning. Full product remains the objective. The [roadmap](full-product-roadmap.md)
+maps all 26 journeys, and [Milestone D](assignments/D-creator-recommendation-loop.md)
+defines the proposed bounded integration sequence, evidence gates and ownership.
+TikTok/Instagram profile analysis is user direction; the smaller three-recommendation
+proof, corpus limits and Reference-led label are engineering proposals. Generation's
+reported local C12 and provider checks are not claimed as integrated or independently
+verified. This planning update authorizes no live calls, spending or deployment;
+the existing $25 aggregate cap requires balance reconciliation before allocation.
+
 ## Project-review UI milestone — 2026-10-06
 
 The user approved beginning with a saved-project review card and splitting delivery
