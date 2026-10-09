@@ -7,7 +7,7 @@ const url = new URL('https://api.lightreel.ai/v1/chat');
 test('bounded transport injects fetch, blocks redirects and does not retry failures', async () => {
   let calls = 0;
   const fetcher: Fetch = async (_, init) => {
-    calls++; assert.equal(init.redirect, 'error'); assert.ok(init.signal);
+    calls++; assert.equal(init.redirect, 'manual'); assert.ok(init.signal);
     return new Response('secret provider diagnostic', { status: 429 });
   };
   const result = await boundedJson(fetcher, url, { method: 'POST' }, { timeoutMs: 100 });
