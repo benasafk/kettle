@@ -84,3 +84,42 @@ Later lead integration proves application authorization, cross-account job denia
 Worker routing and registration. Actual ChatGPT rendering, cross-chat reopen and the
 full live TikTok journey require separate host/provider authorization and evidence.
 This plan performs no live provider calls, spending, deployment or hosted mutations.
+
+## Executable controller slice — merged baseline d8b7b5d
+
+Safely merged `origin/main` at `d8b7b5d4c0cfc7ed67f2636c660fda2691357053`, preserving
+the branch, prior integration commits and plan commit `0958d46`. The controller now
+imports the real merged contracts and tests use `creatorJobFixture` for public outputs.
+No shared files were changed.
+
+`apps/panel/creator-pipeline-controller.ts` exports `createCreatorPipelineController`,
+`creatorJobStructuredOutput` and `creatorJobText`. Its presentation observer has loading,
+job and cleared callbacks; these are host lifecycle callbacks, not duplicate job schemas.
+The injected read accepts only the inferred `GetCreatorJobInput` and an AbortSignal.
+The future bridge must supply only `app.callServerTool({name:'get_creator_job',arguments})`
+and pass the validated structured public output to the controller.
+
+Implemented defaults match the proposal: 2-second polling after settlement, at most one
+read in flight, 10-second request deadline, 30 automatic requests or a 60-second window
+per selection. These are independent client observation bounds, not provider job limits.
+The window prevents new automatic requests; a read already in flight remains bounded by
+its own timeout. Explicit refresh remains possible without resetting the automatic budget.
+All three contract terminal states stop polling. Duplicate identical revisions are valid;
+conflicting equal revisions and terminal-to-active regression fail closed. Lower revisions
+are ignored with a notice and automatic polling pauses. No start/generate API is exposed.
+
+Validation: `npm run typecheck` passed both projects; `npm test` passed all 180 tests,
+including 22 new controller tests using a fake clock. Dedicated tests cover matching
+selection/handshake, absent read capability, finite count/time budgets, duplicate reads,
+all terminal states, ID/project/kind/creation-time mismatch, old/conflicting revisions,
+selection changes, auth/not-found clearing, timeouts/retry, transport failures, teardown,
+invalid inputs/envelopes and full text for DNA, recommendations and scripts. No browser
+or hosted pipeline proof is claimed in this controller-only increment.
+
+Shanghai confirmed on PR #27 that initial loading and auth clearing belong to the host
+(dispose/remount); the component remains `render(job)`/`dispose()`. No real component
+source was available on merged main at this slice, so bridge auto-mount and browser tests
+remain pending that component, rather than shipping a stub or unresolved import. Resource
+and generated artifact names above remain proposals awaiting lead build coordination.
+Runtime/job orchestration, permission-safe application reads, worker registration and
+provider execution remain lead-owned and pending. No deployment/provider calls/spend.
