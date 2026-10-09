@@ -6,6 +6,58 @@ Branch inspected: `gustasbull/chatgpt-mcp-v1`; clean before fast-forward from
 `4790956`. No reset, rename, discarded edits or copied workspace credentials.
 The PR head is recorded in the PR handoff rather than a self-referential commit ID.
 
+## Executable read controller on PR #20 baseline — 2026-10-09
+
+Merged `origin/main` at `26aa6bc` into the existing `gustasbull/chatgpt-mcp-v2`
+branch, retaining `93ce207` and all history. Working tree was clean before the merge.
+The earlier missing-operation statements below are historical: PR #20 now provides
+`createCreatorOperations`, `creatorContracts`, `GetCreatorDnaInput/Output` and the
+permission-filtered `CreatorDnaView`. No shared file was edited by Berlin.
+
+Implemented `apps/panel/creator-review-controller.ts` and focused tests under
+`tests/panel/creator-review-controller.test.ts`. Controller accepts operation results
+and a read callback only. It imports public schemas directly, validates selection and
+result IDs, binds project/profile/scan identity, compares versions within a stable
+`dna_id`, and preserves explicitly requested historical versions. `snapshot_id`
+changes with corrections; scans/association identity do not. No job state is inferred.
+
+Refresh is explicit, single-flight and bounded to ten seconds. A new selection/result,
+auth failure or disposal invalidates pending reads. Old/lower results cannot overwrite
+a newer view; changing to an explicit historical selection resets its version domain.
+Auth, malformed output and unclassified host errors clear private data and require
+remount/reopen. A transient refresh failure may retain a labelled previous view.
+A tools-unavailable host retains valid content with refresh unavailable.
+
+`creatorDnaText` serializes the complete validated public operation result, including
+failures, unknown metrics, limitations and withheld-claim counts. Extra internal
+fields fail validation. It is not yet wired to MCP. Only the public fixture factory
+from `evals/creator-loop/dna-view-fixtures.ts` is used by the new tests; no internal
+stored/ingestion payload is imported into runtime/controller code.
+
+The observer callbacks describe lifecycle events, not a duplicate UI state union or
+business schema. The later adapter will map them to Shanghai's exact component state.
+No component import, resource, tool registration, mutation callback, timer polling,
+provider call, credential persistence or Worker auth composition has been added.
+
+Bundle proposal sent to [Bangkok on PR #20](https://github.com/gustasbull/kettle/pull/20#issuecomment-6082094888):
+entry `apps/panel/creator-review-bridge.ts`, artifact
+`apps/panel/generated/creator-review-bundle.ts`, export `creatorReviewScript`, resource
+module `apps/worker/creator-review-resource.ts`, URI `ui://kettle/creator-review-v1.html`.
+These names remain proposals; Bangkok owns build/runtime composition. The existing
+project-review entry/resource are unchanged.
+
+UI #19 is still open at `be5689c` at this checkpoint. Bangkok's announced saved-view
+export (`mountCreatorReview.render({kind:"saved",dna:CreatorDnaView,preview:false})`)
+will be consumed after its merge and exact API inspection, not copied from an
+unapproved branch. First implementation PR will open once that export lands.
+
+Validation: panel build passed (534861 bytes); browser TypeScript project passed.
+`npx --no-install tsx --test tests/panel/creator-review-controller.test.ts tests/project-review-bridge.test.ts tests/project-review-mcp.test.ts`
+passed 46/46 tests (21 new controller/text cases and 25 existing project-review cases).
+`git diff --check` passed. No actual ChatGPT, hosted permissions,
+provider or paid-job proof is claimed. Existing lead tests establish application
+filtering/persistence independently; controller fixtures prove only client lifecycle.
+
 ## Read-only scan/DNA slice after merged D0 — 2026-10-09
 
 Follow-up baseline: `4a31f3c`. Current branch `gustasbull/chatgpt-mcp-v2` was
