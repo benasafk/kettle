@@ -41,9 +41,15 @@ export const CreatorScriptSet = z.strictObject({
 }).superRefine((v,c)=>{
   if(new Set(v.variants.map(x=>x.id)).size!==v.variants.length || new Set(v.variants.map(x=>x.label)).size!==v.variants.length)c.addIssue({code:'custom',message:'Variants need unique IDs and labels'});
 });
-export const StartCreatorScanInput = z.strictObject({project_id:Id,request_id:Id,scan:ProfileScanRequest});
+export const StartCreatorScanInput = z.strictObject({project_id:Id,request_id:Id,scan:ProfileScanRequest,
+  seed_url:CreatorUrl.optional(),
+}).refine(v => v.scan.max_pages <= 2 && v.scan.max_videos <= 10, 'Development scan allows at most ten videos and two pages')
+  .refine(v => !v.seed_url || new URL(v.seed_url).hostname.replace(/^www\./,'') === 'tiktok.com'
+    && new URL(v.seed_url).pathname.startsWith(new URL(v.scan.supplied_url).pathname.replace(/\/$/,'') + '/video/')
+    && /^\/@[\w.]+\/video\/\d{1,30}$/.test(new URL(v.seed_url).pathname), 'Seed video must belong to the requested profile');
 export const StartCreatorRecommendationsInput = z.strictObject({dna_id:Id,expected_version:z.number().int().positive(),request_id:Id});
 export const StartCreatorScriptsInput = z.strictObject({batch_id:Id,idea_id:Id,request_id:Id});
+export const SaveCreatorScriptsInput = StartCreatorScriptsInput.extend({variants:z.array(FilmingVariant.omit({id:true})).min(2).max(3)});
 export const GetCreatorJobInput = z.strictObject({job_id:Id});
 export const CreatorJobView = z.strictObject({
   id:Id,project_id:Id,revision:z.number().int().positive(),kind:z.enum(['scan','recommendations','scripts']),
@@ -71,6 +77,7 @@ export const pipelineContracts={
   start_creator_scan:{input:StartCreatorScanInput,output:CreatorJobOutput,scope:'projects:write',readOnly:false},
   start_creator_recommendations:{input:StartCreatorRecommendationsInput,output:CreatorJobOutput,scope:'projects:write',readOnly:false},
   start_creator_scripts:{input:StartCreatorScriptsInput,output:CreatorJobOutput,scope:'projects:write',readOnly:false},
+  save_creator_scripts:{input:SaveCreatorScriptsInput,output:CreatorJobOutput,scope:'projects:write',readOnly:false},
   get_creator_job:{input:GetCreatorJobInput,output:CreatorJobOutput,scope:'projects:read',readOnly:true},
 } as const;
 export type PipelineOperation=keyof typeof pipelineContracts;

@@ -1,3 +1,6 @@
+import { pipelineContracts } from '../../packages/contracts/creator-pipeline.ts';
+import type { createPipelineOperations } from '../../packages/application/creator-pipeline.ts';
+import { registerCreatorPipelineResource, CREATOR_PIPELINE_URI } from './creator-pipeline-resource.ts';
 import { creatorContracts } from '../../packages/contracts/creator-operations.ts';
 import type { createCreatorOperations } from '../../packages/application/creator-operations.ts';
 import { registerCreatorReviewResource, CREATOR_REVIEW_URI } from './creator-review-resource.ts';
@@ -16,6 +19,7 @@ export interface McpAuth {
   config: AuthConfig;
   verifier: IdentityVerifier;
   operations: ReturnType<typeof createOperations>;
+  pipelineOperations?: ReturnType<typeof createPipelineOperations>;
   creatorOperations?: ReturnType<typeof createCreatorOperations>;
 }
 export async function handleMcp(request: Request, auth?: McpAuth): Promise<Response> {
@@ -73,6 +77,36 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
       _meta: { securitySchemes, ...(tool.ui ? { ui: tool.ui } : {}) },
     };
   });
+  const pipelineDescriptions = {
+    start_creator_scan: 'Start a user-requested bounded public TikTok profile scan in an existing Kettle project. Use a canonical profile URL, maximum ten videos/two pages, and preserve a supplied video URL in seed_url. Requires an allocated research allowance; can consume provider credits. Use a fresh request ID for a new intent and the identical ID/input only for a retry. Returns a durable job; read its status without restarting it.',
+    start_creator_recommendations: 'Start user-requested reference research and personalized ideas from saved Creator DNA. Read and confirm the current DNA version first; pass expected_version. Can consume provider credits and requires a research allowance. Returns a durable job with zero to three evidence-backed ideas; fewer or no matches must be reported honestly.',
+    start_creator_scripts: 'Backend API generation is disabled for the current trial. Use save_creator_scripts with variants drafted in this conversation. When enabled: generate two or three filming-script variants for the user-selected idea from an existing recommendation batch. Use its exact batch_id and idea_id; binds the original DNA version. Can consume model credits and requires a research allowance. Saves the result as a durable job. Never generate merely to refresh or reopen a card.',
+    save_creator_scripts: 'Save two or three filming variants drafted in this ChatGPT conversation for a user-selected Kettle idea. First read the successful recommendation job and its captured DNA. Draft original hook, opening visual, script, shots, B-roll, on-screen text, showcase timing, CTA, estimated duration and pacing; use only the selected idea reference IDs. Labels: Reference-led, Creator Fit, Experimental (two or three distinct labels). Pass batch_id, idea_id, variants and a new request_id; exact retries reuse that ID. Kettle validates lineage and saves a durable script job without calling an external model or spending credits. Call render_creator_job with returned job_id to reopen.',
+    get_creator_job: 'Read an existing creator scan, recommendation or script job by job_id, including its saved result. Does not call providers, spend credits, start or retry work. Preserve job_id to reopen in a later conversation.',
+  };
+  const pipelineTools = [
+    ...Object.keys(pipelineContracts).filter(name=>name!=='start_creator_scripts').map(name => ({name, operation:name as keyof typeof pipelineContracts,
+      ui:undefined as {resourceUri:string}|undefined})),
+    {name:'render_creator_job',operation:'get_creator_job' as const,ui:{resourceUri:CREATOR_PIPELINE_URI}},
+  ].map(tool=>{
+    const contract=pipelineContracts[tool.operation];
+    const securitySchemes=[{type:'oauth2',scopes:[contract.scope]}];
+    return {...tool,contract,securitySchemes,description:tool.name==='render_creator_job'?'Show an existing creator job and its saved DNA, ideas or scripts as an inline card. Read-only: refresh never starts research or generation. Use the explicit job_id.':pipelineDescriptions[tool.operation],
+      annotations:{readOnlyHint:contract.readOnly,destructiveHint:false,idempotentHint:true,openWorldHint:!contract.readOnly&&tool.operation!=='save_creator_scripts'},
+      _meta:{securitySchemes,...(tool.ui?{ui:tool.ui}:{})}};
+  });
+  if(auth?.pipelineOperations){
+    registerCreatorPipelineResource(server);
+    for(const tool of pipelineTools){
+      const contract=tool.contract;
+      server.registerTool(tool.name,{description:tool.description,inputSchema:contract.input,outputSchema:contract.output.options[0],annotations:tool.annotations,_meta:tool._meta},async(input:unknown)=>{
+        const result=await auth.pipelineOperations!.execute(tool.operation,token,input);
+        const needsAuth=!result.ok&&(result.error.code==='UNAUTHENTICATED'||(result.error.code==='FORBIDDEN'&&token&&!(await auth.verifier.verify(token))?.scopes.includes(contract.scope)));
+        return {content:[{type:'text' as const,text:JSON.stringify(result)}],structuredContent:result,isError:!result.ok,
+          ...(needsAuth?{_meta:{'mcp/www_authenticate':[challenge(auth.config,result.error.code==='FORBIDDEN'?'insufficient_scope':'invalid_token',contract.scope)]}}:{})};
+      });
+    }
+  }
   if (auth?.creatorOperations) {
     const operations = auth.creatorOperations;
     registerCreatorReviewResource(server);
@@ -144,6 +178,12 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
       outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(tool.contract.output), type: 'object' }),
       annotations: tool.annotations, securitySchemes: tool.securitySchemes, _meta: tool._meta,
     });
+  }
+  if(auth?.pipelineOperations)for(const tool of pipelineTools){
+    descriptors.push({name:tool.name,description:tool.description,
+      inputSchema:ToolSchema.shape.inputSchema.parse({...z.toJSONSchema(tool.contract.input),type:'object'}),
+      outputSchema:ToolSchema.shape.outputSchema.parse({...z.toJSONSchema(tool.contract.output),type:'object'}),
+      annotations:tool.annotations,securitySchemes:tool.securitySchemes,_meta:tool._meta});
   }
   server.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: descriptors }));
   // A new stateless transport per request works across Worker isolates. Product

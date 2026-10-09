@@ -1,0 +1,232 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createPipelineOperations, publicCreatorJob, createGuardedProviderContext, canProcessCapturedDna,
+  runCreatorPipelineJob, PipelineRunError, type PipelineRepository, type StoredCreatorJob, type DurableStep } from '../packages/application/creator-pipeline.ts';
+import { failure, type IdentityVerifier } from '../packages/application/operations.ts';
+import { projectCreatorDna, type CreatorRepository } from '../packages/application/creator-operations.ts';
+import { creatorAnalysisFixture } from '../packages/contracts/fixtures/creator-profile.ts';
+import { creatorJobFixture, recommendationBatchFixture, creatorScriptsFixture } from '../evals/creator-loop/pipeline-fixtures.ts';
+import type { CreatorPipelineProvider, PipelineOperation } from '../packages/contracts/creator-pipeline.ts';
+
+const id=(n:number)=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+const account=id(800), request=id(801);
+const ceilings={scrapecreators:1000,lightreel:2000,openai:3000};
+const step:DurableStep=async(_name,run)=>run();
+const identity:IdentityVerifier={async verify(){return {account_id:account,scopes:['projects:read','projects:write']};}};
+const wrapped=(job:StoredCreatorJob)=>({ok:true as const,data:{job}});
+function stored(kind:StoredCreatorJob['kind']='recommendations',state:StoredCreatorJob['state']='queued'):StoredCreatorJob {
+  const job=creatorJobFixture(kind);
+  return {...job,state,result:state==='succeeded'?job.result:null,account_id:account,request_id:request,
+    input:{private_input:'never public'},captured:{private_snapshot:'never public'},message:'private provider diagnostics'};
+}
+function input(kind:PipelineOperation='start_creator_recommendations') {
+  if(kind==='get_creator_job')return {job_id:id(620)};
+  if(kind==='start_creator_scan')return {project_id:id(100),request_id:request,scan:creatorAnalysisFixture().scan.request};
+  if(kind==='start_creator_scripts')return {batch_id:id(600),idea_id:id(602),request_id:request};
+  return {dna_id:id(4),expected_version:1,request_id:request};
+}
+function harness(job=stored(), verifier=identity) {
+  const calls:{op:string;owner:string;input:unknown}[]=[],dispatches:string[][]=[];
+  const repository:PipelineRepository={async call(op,owner,raw){calls.push({op,owner,input:raw});return wrapped(job);}};
+  const operations=createPipelineOperations(verifier,repository,async(...args)=>{dispatches.push(args);});
+  return {calls,dispatches,operations};
+}
+function code(result:Awaited<ReturnType<ReturnType<typeof createPipelineOperations>['execute']>>) {
+  assert.equal(result.ok,false);if(!result.ok)return result.error.code;throw new Error('Expected failure');
+}
+
+test('pipeline operations require verified identity, scope and strict public input before repository access',async()=>{
+  for(const verifier of [{async verify(){return null;}},{async verify(){throw Error('private');}},{async verify(){return {account_id:'bad',scopes:['projects:write']};}}]) {
+    const h=harness(stored(),verifier);assert.equal(code(await h.operations.execute('start_creator_recommendations','token',input())),'UNAUTHENTICATED');assert.equal(h.calls.length,0);
+  }
+  const h=harness();assert.equal(code(await h.operations.execute('start_creator_recommendations',null,input())),'UNAUTHENTICATED');
+  assert.equal(code(await h.operations.execute('start_creator_recommendations','token',{...input(),account_id:account})),'VALIDATION_ERROR');assert.equal(h.calls.length,0);
+  const denied=harness(stored(),{async verify(){return {account_id:account,scopes:['projects:read']};}});
+  assert.equal(code(await denied.operations.execute('start_creator_recommendations','token',input())),'FORBIDDEN');assert.equal(denied.calls.length,0);
+});
+
+test('public projection excludes account, captured evidence, inputs, request IDs and provider diagnostics',()=>{
+  for(const state of ['queued','running','succeeded','failed','needs_reconciliation'] as const){
+    const value=publicCreatorJob(stored('recommendations',state));
+    for(const privateKey of ['account_id','request_id','captured','input','receipts'])assert.equal(privateKey in value,false);
+    assert.doesNotMatch(JSON.stringify(value),/private provider|private_input|private_snapshot/);
+    if(state==='failed'||state==='needs_reconciliation')assert.ok(value.message);else assert.equal(value.message,null);
+  }
+});
+
+test('reads never dispatch; repeated durable queued start retains job identity; dispatch failure retains accepted intent',async()=>{
+  const h=harness();for(let n=0;n<2;n++)assert.equal((await h.operations.execute('start_creator_recommendations','token',input())).ok,true);
+  assert.deepEqual(h.dispatches,[[id(620),account],[id(620),account]]);
+  assert.ok(h.calls.every(c=>c.owner===account));
+  await h.operations.execute('get_creator_job','token',input('get_creator_job'));assert.equal(h.dispatches.length,2);
+  const ops=createPipelineOperations(identity,{async call(){return wrapped(stored());}},async()=>{throw Error('dispatch gap');});
+  assert.equal((await ops.execute('start_creator_recommendations','token',input())).ok,true);
+});
+
+test('repository identity, request, project and kind mismatches never dispatch',async()=>{
+  for(const [operation,field] of [['get_creator_job','id'],['start_creator_recommendations','account_id'],['start_creator_recommendations','request_id'],['start_creator_scan','project_id'],['start_creator_recommendations','kind']] as const){
+    const job=stored(operation==='start_creator_scan'?'scan':'recommendations');
+    if(field==='kind')job.kind='scripts';else job[field]=id(999);
+    const h=harness(job);assert.equal(code(await h.operations.execute(operation,'token',input(operation))),'UNAVAILABLE');assert.equal(h.dispatches.length,0);
+  }
+});
+
+test('malformed repository public state fails before dispatch',async()=>{
+  const job=stored();job.result=creatorJobFixture().result;
+  const h=harness(job);assert.equal(code(await h.operations.execute('start_creator_recommendations','token',input())),'UNAVAILABLE');assert.equal(h.dispatches.length,0);
+});
+
+test('repository failure and rejection are sanitized',async()=>{
+  for(const output of [failure('NOT_FOUND'),{ok:true,data:{job:{private:'secret'}}}]){
+    const ops=createPipelineOperations(identity,{async call(){return output;}},async()=>assert.fail('dispatch'));
+    const value=await ops.execute('get_creator_job','token',input('get_creator_job'));assert.equal(value.ok,false);assert.doesNotMatch(JSON.stringify(value),/secret/);
+  }
+});
+
+function guarded(reserve:unknown,complete:unknown={ok:true,data:{status:'completed',receipt:{allowed:'saved'}}}) {
+  const events:string[]=[],calls:{op:string;raw:any}[]=[];
+  const repository:PipelineRepository={async call(op,owner,raw){assert.equal(owner,account);calls.push({op,raw});events.push(op);if(op==='reserve_creator_attempt')return reserve;if(complete instanceof Error)throw complete;return complete;}};
+  return {events,calls,context:createGuardedProviderContext(repository,stored(),ceilings,step)};
+}
+const reservation=(status:string,receipt?:unknown)=>({ok:true,data:{status,...(receipt===undefined?{}:{receipt})}});
+
+test('guard reserves ceiling before I/O, saves allowlisted receipt and returns durable receipt',async()=>{
+  const g=guarded(reservation('acquired'));
+  const value=await g.context.call('profile','scrapecreators','profile',async()=>{g.events.push('execute');return {allowed:'received'};});
+  assert.deepEqual(g.events,['reserve_creator_attempt','execute','complete_creator_attempt']);assert.deepEqual(value,{allowed:'saved'});
+  assert.deepEqual(g.calls[0]!.raw,{job_id:id(620),key:'profile',provider:'scrapecreators',operation:'profile',ceiling_microusd:1000});
+});
+
+test('guard replays without I/O; ambiguous/denied reservations do not execute',async()=>{
+  const replay=guarded(reservation('replay',{allowed:'cached'}));
+  assert.deepEqual(await replay.context.call('research','lightreel','research',async()=>assert.fail('repeat I/O')),{allowed:'cached'});
+  for(const [reserve,state] of [[reservation('ambiguous'),'needs_reconciliation'],[failure('FORBIDDEN'),'failed'],[{},'failed']] as const){
+    const g=guarded(reserve);await assert.rejects(g.context.call('research','lightreel','research',async()=>assert.fail('I/O')),e=>e instanceof PipelineRunError&&e.state===state);assert.equal(g.calls.length,1);
+  }
+});
+
+test('guard never retries execute exceptions, oversized receipts or completion failure',async()=>{
+  for(const mode of ['execute','oversized','completion','invalid-completion']){
+    const g=guarded(reservation('acquired'),mode==='completion'?Error('storage'):mode==='invalid-completion'?failure('UNAVAILABLE'):undefined);
+    let executions=0;await assert.rejects(g.context.call('generate','openai','generate',async()=>{executions++;if(mode==='execute')throw Error('provider secret');return mode==='oversized'?{text:'x'.repeat(300001)}:{allowed:'received'};}),e=>e instanceof PipelineRunError&&e.state==='needs_reconciliation');assert.equal(executions,1);
+    assert.equal(g.calls.filter(c=>c.op==='reserve_creator_attempt').length,1);
+    assert.equal(g.calls.filter(c=>c.op==='complete_creator_attempt').length,mode==='execute'||mode==='oversized'?0:1);
+  }
+});
+
+test('invalid guard keys and ceilings fail before reservation or execution',async()=>{
+  for(const [key,ceiling] of [['bad key',1000],['profile',-1],['profile',0.5]] as const){
+    const context=createGuardedProviderContext({async call(){assert.fail('reserve');}},stored(),{...ceilings,scrapecreators:ceiling},step);
+    await assert.rejects(context.call(key,'scrapecreators','profile',async()=>assert.fail('execute')),e=>e instanceof PipelineRunError&&e.state==='failed');
+  }
+});
+
+/** These are synthetic authorization fixtures, never fetched/live evidence. */
+function approvedStored() {
+  const analysis=creatorAnalysisFixture();
+  for(const o of [...analysis.scan.profile_observations,...analysis.scan.video_observations]){
+    o.provenance.origin='live';o.provenance.permission.status='approved';o.provenance.permission.basis='Synthetic permission test only';
+  }
+  return {dna_id:analysis.dna.id,project_id:id(100),analysis};
+}
+function approvedBatch(){const batch=recommendationBatchFixture();batch.contains_fixture_data=false;batch.references.forEach(r=>{r.origin='live';r.permission_basis='Synthetic permission test only';});return batch;}
+function approvedScripts(){const scripts=creatorScriptsFixture();scripts.contains_fixture_data=false;return scripts;}
+
+test('model-processing authorization requires exact captured identity/version/snapshot and live approved underlying claim evidence',()=>{
+  const saved=approvedStored();assert.equal(canProcessCapturedDna(saved,projectCreatorDna(saved)),true);
+  for(const key of ['dna_id','snapshot_id','project_id','version'] as const){const view=projectCreatorDna(saved);if(key==='version')view.version++;else view[key]=id(999);assert.equal(canProcessCapturedDna(saved,view),false);}
+  for(const mutate of [
+    (s:ReturnType<typeof approvedStored>)=>{s.analysis.scan.video_observations[0]!.provenance.permission.permitted_uses=['store','display'];},
+    (s:ReturnType<typeof approvedStored>)=>{s.analysis.scan.video_observations[0]!.provenance.permission.status='fixture_only';},
+    (s:ReturnType<typeof approvedStored>)=>{s.analysis.scan.video_observations[0]!.provenance.origin='fixture';},
+  ]){const s=approvedStored();mutate(s);assert.equal(canProcessCapturedDna(s,projectCreatorDna(s)),false);}
+  const corrected=approvedStored();corrected.analysis.dna.claims[0]!.basis='user_corrected';corrected.analysis.dna.claims[0]!.supersedes_claim_id=id(900);
+  corrected.analysis.scan.video_observations[0]!.provenance.permission.permitted_uses=['store','display'];
+  assert.equal(canProcessCapturedDna(corrected,projectCreatorDna(corrected)),false);
+});
+
+function runner(kind:StoredCreatorJob['kind']='recommendations') {
+  const saved=approvedStored(),batch=approvedBatch(),scripts=approvedScripts();
+  const job=stored(kind,'running');job.captured=kind==='scan'?{scan:saved.analysis.scan.request}:{stored:saved,...(kind==='scripts'?{batch,idea_id:batch.ideas[0]!.id}:{})};
+  const finishes:any[]=[],providerCalls:string[]=[],steps:string[]=[],ingests:unknown[]=[];
+  const repository:PipelineRepository={async call(op,_account,raw){if(op==='run_creator_job')return wrapped(job);if(op==='finish_creator_job'){finishes.push(raw);return wrapped({...job,...raw as object});}throw Error(op);}};
+  const creatorRepository:CreatorRepository={async call(_op,_account,raw){ingests.push(raw);return {ok:true,data:saved};}};
+  const provider:CreatorPipelineProvider={async scan(){providerCalls.push('scan');return saved.analysis;},async recommend(){providerCalls.push('recommend');return batch;},async generate(){providerCalls.push('generate');return scripts;}};
+  const run=()=>runCreatorPipelineJob(repository,creatorRepository,account,job.id,()=>provider,ceilings,async(name,fn)=>{steps.push(name);return fn();});
+  return {saved,batch,scripts,job,finishes,providerCalls,steps,ingests,repository,creatorRepository,provider,run};
+}
+
+test('runner stages save immutable captured lineage and scan ingestion receipt',async()=>{
+  for(const kind of ['scan','recommendations','scripts'] as const){const r=runner(kind);await r.run();assert.equal(r.finishes.length,1);assert.equal(r.finishes[0].state,'succeeded');assert.equal(r.finishes[0].result.kind,kind);assert.equal(r.providerCalls.length,1);
+    if(kind==='scan'){assert.equal(r.ingests.length,1);assert.equal((r.ingests[0] as {request_id:string}).request_id,r.job.id);assert.ok(r.steps.includes('save-dna'));}}
+});
+
+test('runner rejects captured project and processing rights before provider calls',async()=>{
+  for(const mode of ['project','permission']){const r=runner();if(mode==='project')r.saved.project_id=id(999);else r.saved.analysis.scan.video_observations[0]!.provenance.permission.permitted_uses=['store','display'];await r.run();assert.deepEqual(r.providerCalls,[]);assert.equal(r.finishes.at(-1).state,'failed');}
+});
+
+test('runner rejects recommendation and script output lineage mismatches',async()=>{
+  for(const key of ['dna_id','dna_version','contains_fixture_data'] as const){const r=runner();if(key==='dna_version')r.batch[key]++;else if(key==='contains_fixture_data')r.batch[key]=true;else r.batch[key]=id(999);await r.run();assert.equal(r.finishes.at(-1).state,'failed');}
+  for(const key of ['batch_id','idea_id','dna_id','dna_version','references','contains_fixture_data']){const r=runner('scripts');if(key==='dna_version')r.scripts.dna_version++;else if(key==='references')r.scripts.variants[0]!.reference_ids=[id(999)];else if(key==='contains_fixture_data')r.scripts.contains_fixture_data=true;else r.scripts[key as 'batch_id'|'idea_id'|'dna_id']=id(999);await r.run();assert.equal(r.finishes.at(-1).state,'failed');}
+});
+
+test('runner rejects captured batch or selected idea mismatch before generation',async()=>{
+  for(const mode of ['version','idea']){const r=runner('scripts');if(mode==='version')r.batch.dna_version++;else (r.job.captured as {idea_id:string}).idea_id=id(999);await r.run();assert.deepEqual(r.providerCalls,[]);assert.equal(r.finishes.at(-1).state,'failed');}
+});
+
+test('runner preserves ambiguous outcome, does not retry providers or failed stage writes',async()=>{
+  for(const mode of ['ambiguous','save-result','save-dna']){
+    const r=runner(mode==='save-dna'?'scan':'recommendations');
+    if(mode==='ambiguous')r.provider.recommend=async()=>{r.providerCalls.push('recommend');throw new PipelineRunError('needs_reconciliation');};
+    if(mode==='save-dna')r.creatorRepository.call=async()=>{r.ingests.push('failed');return failure('UNAVAILABLE');};
+    if(mode==='save-result'){const call=r.repository.call;r.repository.call=async(op,owner,raw)=>{if(op==='finish_creator_job'&&(raw as {state:string}).state==='succeeded'){r.finishes.push(raw);return failure('UNAVAILABLE');}return call(op,owner,raw);};}
+    await r.run();assert.equal(r.providerCalls.length,1);assert.equal(r.finishes.at(-1).state,mode==='ambiguous'?'needs_reconciliation':'failed');
+    assert.equal(r.steps.filter(s=>s==='save-result').length,mode==='save-result'?1:0);
+  }
+});
+
+test('runner ignores terminal jobs and rejects wrong loaded identity without providers',async()=>{
+  for(const mode of ['terminal','account','id']){const r=runner();if(mode==='terminal')r.job.state='failed';else if(mode==='account')r.job.account_id=id(999);else r.job.id=id(999);
+    if(mode==='terminal')await r.run();else await assert.rejects(runCreatorPipelineJob(r.repository,r.creatorRepository,account,id(620),()=>r.provider,ceilings,step),PipelineRunError);
+    assert.deepEqual(r.providerCalls,[]);assert.deepEqual(r.finishes,[]);
+  }
+});
+
+test('re-entering a durable step after unknown provider outcome cannot execute again',async()=>{
+  let reserved=false,executions=0;
+  const repo:PipelineRepository={async call(op){assert.equal(op,'reserve_creator_attempt');if(reserved)return reservation('ambiguous');reserved=true;return reservation('acquired');}};
+  const run=()=>createGuardedProviderContext(repo,stored(),ceilings,step).call('research','lightreel','research',async()=>{executions++;throw Error('response lost');});
+  await assert.rejects(run(),e=>e instanceof PipelineRunError&&e.state==='needs_reconciliation');
+  await assert.rejects(run(),e=>e instanceof PipelineRunError&&e.state==='needs_reconciliation');
+  assert.equal(executions,1);
+});
+
+test('runner rejects a scan for a different captured request before ingesting',async()=>{
+  const r=runner('scan');
+  (r.job.captured as {scan:unknown}).scan={...r.saved.analysis.scan.request,max_videos:3};
+  await r.run();assert.equal(r.providerCalls.length,1);assert.equal(r.ingests.length,0);assert.equal(r.finishes.at(-1).state,'failed');
+});
+
+test('ChatGPT drafted variants save with generated durable IDs and no provider construction or calls',async()=>{
+  const r=runner('scripts');
+  const variants=r.scripts.variants.map(({id:_id,...v})=>v);
+  (r.job.captured as Record<string,unknown>).variants=variants;
+  await runCreatorPipelineJob(r.repository,r.creatorRepository,account,r.job.id,()=>assert.fail('provider construction'),{scrapecreators:0,lightreel:0,openai:0},step);
+  assert.equal(r.finishes.at(-1).state,'succeeded');assert.deepEqual(r.providerCalls,[]);
+  const saved=r.finishes.at(-1).result.scripts;
+  assert.equal(saved.variants.length,2);assert.equal(new Set(saved.variants.map((v:{id:string})=>v.id)).size,2);
+  assert.match(saved.limitations.join(' '),/No separate OpenAI API request/);
+  assert.deepEqual(saved.variants.map(({id:_id,...v}:any)=>v),variants);
+});
+
+test('saved ChatGPT variants enforce selected reference IDs and unique labels without invoking providers',async()=>{
+  for(const invalid of ['reference','label','count']){
+    const r=runner('scripts'),variants=r.scripts.variants.map(({id:_id,...v})=>v);
+    if(invalid==='reference')variants[0]!.reference_ids=[id(999)];
+    if(invalid==='label')variants[1]!.label=variants[0]!.label;
+    if(invalid==='count')variants.pop();
+    (r.job.captured as Record<string,unknown>).variants=variants;
+    await runCreatorPipelineJob(r.repository,r.creatorRepository,account,r.job.id,()=>assert.fail('provider construction'),{scrapecreators:0,lightreel:0,openai:0},step);
+    assert.equal(r.finishes.at(-1).state,'failed');assert.deepEqual(r.providerCalls,[]);
+  }
+});

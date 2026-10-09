@@ -2,6 +2,7 @@
 import worker from '../apps/worker/index.ts';
 import { runAuthRuntimeCheck } from './auth-runtime-check.ts';
 export { FoundationWorkflow } from '../apps/worker/workflow.ts';
+export { CreatorPipelineWorkflow } from '../apps/worker/creator-pipeline-runtime.ts';
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
