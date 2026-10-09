@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { creatorPipelineScript } from '../panel/generated/creator-pipeline-bundle.ts';
 
-export const CREATOR_PIPELINE_URI = 'ui://kettle/creator-pipeline-v1.html';
+export const CREATOR_PIPELINE_URI = 'ui://kettle/creator-pipeline-v2.html';
 export const CREATOR_PIPELINE_MIME = 'text/html;profile=mcp-app';
 export const CREATOR_PIPELINE_META = {
   'openai/ui': { availableDisplayModes: ['inline'] },

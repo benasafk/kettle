@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { creatorReviewScript } from '../panel/generated/creator-review-bundle.ts';
 
-export const CREATOR_REVIEW_URI = 'ui://kettle/creator-review-v1.html';
+export const CREATOR_REVIEW_URI = 'ui://kettle/creator-review-v2.html';
 export const CREATOR_REVIEW_MIME = 'text/html;profile=mcp-app';
 export const CREATOR_REVIEW_META = {
   'openai/ui': { availableDisplayModes: ['inline'] },

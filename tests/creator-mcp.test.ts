@@ -72,7 +72,7 @@ test('Creator MCP reads, render and corrections use signed identity, real SQL an
   const reopened = GetCreatorDnaOutput.parse((await call('render_creator_dna',input,token)).result.structuredContent); assert.ok(reopened.ok); assert.equal(reopened.data.dna.version,2);
   const history = GetCreatorDnaOutput.parse((await call('get_creator_dna',{...input,version:1},token)).result.structuredContent); assert.deepEqual(history,view);
   const stale = (await call('correct_creator_dna',{...correction,request_id:crypto.randomUUID()},token)).result; assert.equal(stale.isError,true); assert.match(stale.content[0]!.text,/VERSION_CONFLICT/);
-  const resource = await (await rpc('resources/read',{uri:'ui://kettle/creator-review-v1.html'})).json() as {result:{contents:{text:string;_meta:Record<string,unknown>}[]}};
+  const resource = await (await rpc('resources/read',{uri:'ui://kettle/creator-review-v2.html'})).json() as {result:{contents:{text:string;_meta:Record<string,unknown>}[]}};
   assert.match(resource.result.contents[0]!.text,/ui\/initialize/);
   assert.ok(!resource.result.contents[0]!.text.includes(stored.data.dna_id));
   const unavailable = await (await rpc('tools/list',{},undefined,false)).json() as {result:{tools:{name:string}[]}};
