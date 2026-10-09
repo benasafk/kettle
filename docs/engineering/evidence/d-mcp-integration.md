@@ -435,3 +435,71 @@ authorization and behavior-based annotations; they do not approve Kettle's propo
 operation names, polling policy or spending. Installed baseline is ext-apps 1.7.5,
 MCP SDK 1.32.1; existing bridge uses App/PostMessageTransport, serverTools capability,
 AbortSignal/deadlines and explicit resize cleanup. No upgrade is assumed.
+
+## Read-only MCP bridge/resource follow-up — 2026-10-09
+
+Bangkok approved the production entry/resource names and requested bridge work while
+retaining ownership of shared build, MCP registration and auth composition. Incorporated
+shared flag commit `0e5324516fc3948d22f36cd63e77f3455c77475f` (including merged PRs 21–23)
+by fast-forward on the existing branch, preserving all previous integration commits.
+
+Owned exports for lead wiring:
+
+- `apps/panel/creator-review-bridge.ts`: browser entry auto-mounts `#root`;
+  `mountCreatorReviewBridge(root)` returns `{ refresh, dispose }`. It consumes
+  `mountSavedCreatorReview`, accepts only validated `GetCreatorDnaOutput` from
+  `structuredContent`, preserves `contains_fixture_data`, and uses only
+  `get_creator_dna` with the exact selected `GetCreatorDnaInput` for explicit reads.
+- `apps/worker/creator-review-resource.ts`: `registerCreatorReviewResource(server)`,
+  `CREATOR_REVIEW_URI`, `CREATOR_REVIEW_MIME`, `CREATOR_REVIEW_META`, `creatorReviewHtml`.
+  URI is `ui://kettle/creator-review-v1.html`; MIME is `text/html;profile=mcp-app`.
+  Static resource imports `creatorReviewScript` from the approved generated module;
+  script escaping and empty network/asset/frame/base-URI CSP follow project review.
+- Lead registers `render_creator_dna` with `GetCreatorDnaInput`, executes the authenticated
+  filtered operation and supplies complete text plus structured output. Lead retains
+  ownership of scopes/challenges, tools/list consistency, SDK output-schema workaround,
+  and `authServices.creatorOperations` composition. This follow-up registers no tools.
+
+No mount-time reads, polling, provider calls, corrections, jobs, credentials, storage,
+or model-context writes. Parent WindowProxy filtering uses the installed SDK transport.
+Handlers precede connect; initialization and reads are bounded. The controller deadline
+precedes the SDK hard deadline so timeout recovery retains the explicit retry path.
+Auth failures and invalid envelopes clear the UI; late responses cannot restore it.
+Resize observers/frames and requests are cleaned up on pagehide or host teardown;
+teardown is acknowledged before closing. Host CSS/fonts are not injected.
+
+The component currently has no Refresh callback/button. The bridge exposes explicit
+`refresh()` for the future UI seam; users currently reopen via `render_creator_dna`
+in chat. No competing inline control was implemented. Text fallback remains a server
+registration responsibility, using the full filtered public output (the controller's
+`creatorDnaText` tests cover completeness).
+
+Validation uses real ext-apps 1.7.5 / MCP SDK 1.32.1 and the real UI in Chromium under
+a local parent-frame fixture, plus an in-memory SDK resource client/server. It proves
+handshake, parent-source rejection, no automatic reread, exact read selection, duplicate
+suppression, timeout/retry/late-response behavior, auth clearing, no-tools display,
+missing-handshake recovery, top-level rejection, theme/locale, size notifications and
+teardown cleanup. Resource tests cover list/read metadata, the real static script and
+HTML escaping; envelope tests reject text/private-meta fallback and contradictory errors.
+Existing controller tests continue covering IDs, versions and complete text fallback.
+
+Shared build wiring is intentionally pending: for local validation only, an ignored
+`.context/d-integration/build-creator.mjs` invokes existing esbuild on the real entry and
+writes the approved ignored generated artifact. No stub or generated bundle is committed.
+A clean checkout needs Bangkok's creator build hook before tests/typecheck/runtime import
+of the new resource. The normal project build hook remains untouched.
+
+Rechecked official [OpenAI UI documentation](https://developers.openai.com/plugins/build/chatgpt-ui)
+and [MCP App API](https://apps.extensions.modelcontextprotocol.io/api/classes/app.App.html)
+against installed APIs. These checks and local iframe tests are not actual ChatGPT proof.
+Remaining lead/host checks: combined shared build and Worker resource routing, authenticated
+render/read tool metadata and second-account denial, hosted resource rendering and refresh
+or reopen after corrections, token revocation, no-UI complete text, and persisted fictional
+labels after Shanghai's follow-up. No deployment or hosted mutations performed.
+
+Final local validation after incorporating `0e53245`: `npm run check` passed with
+154 TypeScript tests, 28 browser checks, both TypeScript projects, Worker dry-run build
+and local workerd smoke. The manually generated real Creator DNA artifact was 552,566
+bytes. Logs: `.context/d-integration/bridge-final-check.log` (workspace-local).
+`git diff --check` passed. These results require the local artifact step described above;
+they do not claim the pending shared build hooks or Creator DNA Worker routing are proven.
