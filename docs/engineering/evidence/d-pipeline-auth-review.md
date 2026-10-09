@@ -1,6 +1,8 @@
 # Creator pipeline authorization review
 
 Reviewed `ea7e1b198c6377318107236956443015cb306427` (PR #27), 2026-10-09.
+Safely merged its green main baseline `d8b7b5d4c0cfc7ed67f2636c660fda2691357053`
+into the existing Auth branch, preserving its acceptance and timing-fix commits.
 This is a source review and pending acceptance matrix, not executable pipeline or
 hosted proof. The reviewed tree supplies contracts and provider ports but no pipeline
 application/repository, durable guard or migration. Existing stored-DNA tests do not
@@ -45,6 +47,16 @@ results. These are useful structural checks, not ownership checks.
    reactivate an account/identity, bypass read authorization, or grant access through
    a cached receipt. Identity cutoff and account suspension are distinct conditions;
    identity credential denial does not by itself define cancellation of queued work.
+5. **Confirmed model-processing permission gate:** `CreatorDnaView` is a display
+   projection, not processing authorization. Its evidence omits underlying permission
+   metadata. The lead must inspect the captured stored snapshot and evidence for
+   `model_processing` rights before external research/generation, including evidence
+   supporting user-corrected claims. Display-only evidence cannot become processable
+   merely through a correction. Generation requires an injected `canProcessDna`
+   decision scoped to the exact snapshot ID/version, with no permissive default.
+   An approved different snapshot or latest version cannot authorize the captured one.
+   This check is separate from the guard's current run allowance recheck; both gates
+   must pass. No permission metadata needs to be added to public tool inputs/views.
 
 Additional bounded-input discrepancy: `ProfileScanRequest` permits 50 videos/3 pages,
 while the integration brief's initial runtime limit is 10/2. The effective server cap
@@ -70,6 +82,9 @@ only provider content/I/O. Never substitute the authorization/repository impleme
 | PA-08 | Pause fake provider completion after a real accepted job; revoke identity or suspend account locally, then release completion. Reads/replays stay denied, identity/account rows stay revoked. Check the lead-defined completion/cancellation state and no further provider call after account revocation. For identity-only cutoff/block, prove credential denial and unchanged revocation rows without assuming the queued job is cancelled. |
 | PA-09 | Return structurally valid but wrong DNA/version/project/batch/idea/reference lineage or false fixture provenance from the provider seam. No successful persisted/public result; only defined failure/reconciliation bookkeeping may change. |
 | PA-10 | Withdraw allowance or exhaust the configured ceiling between admission and a later provider request, including queued work. Guard denies new I/O. Authorized reads remain available; start receipt replay cannot create/resubmit/resume work. Exact successful call replay, ambiguous attempts and duplicate completion follow published durable semantics without another charge or duplicate output. |
+| PA-11 | Persist a displayable DNA snapshot whose underlying evidence lacks `model_processing`, including a user-corrected claim with display-only evidence. Display/read remains allowed, but research/generation makes zero external calls. Inspect the real stored permission decision; do not treat a mocked `canProcessDna: false` test alone as authorization proof. Compare against an otherwise equivalent processable snapshot that succeeds with valid account, scopes and allowance. |
+| PA-12 | Bind processing permission to exact snapshot ID/version: allow A1/v1, deny A1/v2 and A2/B1 substitutions, and test a historical batch bound to v1 when current v2 has different rights in both directions. Never substitute latest rights or use a cached blanket boolean. Generation construction without the required injected `canProcessDna` must fail closed; callback denial/failure must prevent external I/O. Validate the concrete API's handling once published. |
+| PA-13 | With processing permission granted, withdraw the current run allowance before the next guarded provider attempt. Deny external I/O despite the earlier permission/admission; existing authorized reads remain available. Conversely, available allowance cannot override missing processing rights. Retain snapshots and call counts for both independent gates. |
 
 For denials compare sorted full rows across identity/account, project/DNA, jobs,
 batches/scripts, receipts, attempts and reservations as applicable. Capture actual
@@ -85,6 +100,9 @@ and migration, local fixture/provider composition, and runner advance/complete e
 point that uses the actual durable guard. Please also identify the trusted allowance
 configuration, account recheck/completion boundaries, public error codes/precedence,
 receipt namespace and replay output semantics, and durable tables
-for snapshots. Auth will add dedicated `tests/d-creator-auth*.test.ts` coverage against
+for snapshots. Publish the stored-evidence permission evaluator and Generation's
+required `canProcessDna` injection signature, exact snapshot binding and failure
+semantics, so tests exercise the real permission decision through the runner.
+Auth will add dedicated `tests/d-creator-auth*.test.ts` coverage against
 those implementations. No placeholder operations or mocked authorization tests are
 introduced while these seams remain unpublished.
