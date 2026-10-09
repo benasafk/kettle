@@ -49,7 +49,7 @@ test('Creator DNA bridge parent transport, refresh, denial and teardown', async 
   async function launch(query='') {
     await page.goto(url+'/'+query); await page.waitForFunction(()=>window.ready);
     const frame=page.frames().find(f=>f.url().endsWith('/frame'));
-    await frame.waitForFunction(()=>document.querySelector('#review').textContent.includes('Preview version 1'));
+    await frame.waitForFunction(()=>document.querySelector('#review').textContent.includes('Saved version 1'));
     return frame;
   }
   let frame=await launch();
@@ -61,7 +61,7 @@ test('Creator DNA bridge parent transport, refresh, denial and teardown', async 
     // Same-window spoof is not the parent WindowProxy accepted by PostMessageTransport.
     await frame.evaluate(()=>window.postMessage({jsonrpc:'2.0',method:'ui/notifications/tool-result',params:{isError:true,content:[]}},'*'));
     await frame.evaluate(()=>new Promise(resolve=>setTimeout(resolve,20)));
-    assert.match(await frame.locator('#review').textContent(),/Preview version 1/);
+    assert.match(await frame.locator('#review').textContent(),/Saved version 1/);
   });
   await t.test('explicit refresh reads only get_creator_dna; duplicate calls suppressed',async()=>{
     await frame.evaluate(()=>Promise.all([window.bridge.refresh(),window.bridge.refresh()]));
@@ -73,20 +73,20 @@ test('Creator DNA bridge parent transport, refresh, denial and teardown', async 
     assert.match(await frame.locator('#review').textContent(),/Refresh timed out/);
     await page.evaluate(()=>{window.reply(window.calls.at(-1).id,{structuredContent:window.output,content:[]});window.respond=true;});
     await frame.evaluate(()=>window.bridge.refresh());
-    assert.match(await frame.locator('#review').textContent(),/Preview version 1/);
+    assert.match(await frame.locator('#review').textContent(),/Saved version 1/);
   });
   await t.test('auth failure clears data and late host output cannot restore it',async()=>{
     await page.evaluate(()=>window.send('ui/notifications/tool-result',{structuredContent:window.denied,isError:true,content:[]}));
     await frame.waitForFunction(()=>document.querySelector('#review').textContent.includes('Reconnect your Kettle'));
     await page.evaluate(()=>window.send('ui/notifications/tool-result',{structuredContent:window.output,content:[]}));
     await frame.evaluate(()=>window.bridge.refresh());
-    assert.doesNotMatch(await frame.locator('#review').textContent(),/Desk demonstrations|Preview version/);
+    assert.doesNotMatch(await frame.locator('#review').textContent(),/Desk demonstrations|Saved version/);
   });
   await t.test('missing read capability retains display without sending tools',async()=>{
     frame=await launch('?no-tools');
     await frame.evaluate(()=>window.bridge.refresh());
     assert.equal(await page.evaluate(()=>window.calls.length),0);
-    assert.match(await frame.locator('#review').textContent(),/Preview version 1/);
+    assert.match(await frame.locator('#review').textContent(),/Saved version 1/);
   });
   await t.test('missing handshake reaches recovery and top-level mounting fails closed',async()=>{
     await page.goto(url+'/?silent');

@@ -52,8 +52,8 @@ test('filtered DNA controller renders the real saved-view component without host
   await t.test('real saved state uses public fixture with zero initial reads and inert provider links', async () => {
     assert.match(await root.textContent(), /Loading/);
     await page.evaluate(() => window.launch());
-    assert.match(await root.textContent(), /Preview version 1/);
-    assert.match(await root.textContent(), /Fictional preview/);
+    assert.match(await root.textContent(), /Saved version 1/);
+    assert.match(await root.textContent(), /Contains fictional test data/);
     assert.match(await root.textContent(), /Desk demonstrations appear/);
     assert.doesNotMatch(await root.textContent(), /authored-fixture|fixture\/profile/);
     assert.equal(await root.locator('a,button,input,textarea').count(), 0);
@@ -65,14 +65,14 @@ test('filtered DNA controller renders the real saved-view component without host
     assert.equal(await page.evaluate(() => window.calls.length), 1);
     assert.deepEqual(await page.evaluate(() => window.calls[0].input), { dna_id: '00000000-0000-4000-8000-000000000004' });
     await page.evaluate(async () => { window.calls[0].resolve(window.makeResult(2)); await window.pending; });
-    assert.match(await root.textContent(), /Preview version 2/);
+    assert.match(await root.textContent(), /Saved version 2/);
     assert.equal(await root.locator('details').first().evaluate(el => el.open), true);
     assert.equal(await root.locator('summary').first().evaluate(el => el === document.activeElement), true);
   });
   await t.test('auth loss clears the real DOM and an outstanding response cannot restore it', async () => {
     await page.evaluate(() => { window.pending = window.review.refresh(); window.review.receiveResult(window.failure('UNAUTHENTICATED')); });
     assert.match(await root.textContent(), /Reconnect your Kettle account/);
-    assert.doesNotMatch(await root.textContent(), /Desk demonstrations|Preview version/);
+    assert.doesNotMatch(await root.textContent(), /Desk demonstrations|Saved version/);
     await page.evaluate(async () => { window.calls[1].resolve(window.makeResult(3)); await window.pending; });
     assert.equal(await page.evaluate(() => window.calls[1].signal.aborted), true);
     assert.doesNotMatch(await root.textContent(), /Desk demonstrations/);
@@ -84,12 +84,12 @@ test('filtered DNA controller renders the real saved-view component without host
     assert.match(await root.textContent(), /Ask Kettle in chat to reopen/);
     assert.doesNotMatch(await root.textContent(), /Desk demonstrations/);
     await page.evaluate(async () => { const p = window.review.refresh(); window.calls[1].resolve(window.makeResult(2)); await p; });
-    assert.match(await root.textContent(), /Preview version 2/);
+    assert.match(await root.textContent(), /Saved version 2/);
   });
   await t.test('capability absence stays readable; wrong ID clears; disposal removes view and callbacks', async () => {
     await page.evaluate(() => { window.mount(); window.launch(false); });
     await page.evaluate(() => window.review.refresh());
-    assert.match(await root.textContent(), /Preview version 1/);
+    assert.match(await root.textContent(), /Saved version 1/);
     assert.equal(await page.evaluate(() => window.calls.length), 0);
     await page.evaluate(() => {
       const result = window.makeResult(); result.data.dna.dna_id = '00000000-0000-4000-8000-000000009999';
