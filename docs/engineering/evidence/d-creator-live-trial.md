@@ -120,4 +120,64 @@ this is not claimed as proof of authenticated public scan creation. The cause wa
 An actual workerd regression reproduced the TypeError. Both transports now use
 `manual` and reject non-2xx responses, preserving no-redirect credential safety.
 The regression covers database/provider Request construction and 302 rejection
-without any external request. Live completion evidence remains pending.
+without any external request. Subsequent live completion is recorded below.
+
+## Actual ChatGPT and provider proof
+
+PRs #35–#37 are merged through `40d7bff`. Development Worker version
+`c2c4462b-a778-4e28-9e3a-e4c675593f59` contains the Lightreel-first path and
+versioned card resource URIs. The URI change prevents ChatGPT from using a cached
+strict-schema card bundle that predates `seed_review`. Full checks passed 260
+TypeScript tests and 50 browser checks, build and workerd smoke; PR #37 CI passed.
+Hosted checks confirm thirteen tools, restrictive card CSP, authenticated health,
+anonymous/invalid-token denial, and no exposed OpenAI generation operation.
+
+Actual authenticated ChatGPT calls created and completed scan
+`da7f3ab2-d9a2-4052-9b21-148bcf3e163e`. Its first guarded request was Lightreel
+`seed-review`, followed by ScrapeCreators `profile` and `feed:0`. All three have
+successful receipts. The saved result contains ten recent videos and DNA
+`ce012826-62ff-598a-9309-3ef18578b0d7`, version 1. Lightreel's review of the exact
+supplied TikTok was retrieved at `2026-10-09T15:30:44.762Z`, with
+`video_access_reported`. It describes a short Mask.ai demonstration with a problem
+hook, three tutorial steps and a displayed detector result. The review explicitly
+does not validate the displayed “100% human” claim. This is provider-reported access,
+not independent audiovisual verification by Kettle or visual analysis of all ten posts.
+
+The same account reopened the scan and its Lightreel review in a separate ChatGPT
+conversation, with working inline cards. Recommendation job
+`3b56d4f0-4966-42df-b330-3ffb5c4bb2c4` then completed one Lightreel discovery request
+and three ScrapeCreators detail requests. Batch
+`885dc245-ecf0-5006-8666-0d1abd728f59` contains two ideas. Their titles and explanatory
+text are repetitive baseline templates; successful execution is not semantic-quality
+acceptance. Discovery evidence in this run includes another post from the same
+creator; independent-creator diversity is not proven. ChatGPT's earlier prose status
+remained “running” after the live card updated to “Complete”; the saved job/card is
+authoritative, and a subsequent read returned the completed result.
+
+The initial pre-correction failed job remains `needs_reconciliation`; no ambiguous
+request was retried or refunded. Local trial reservations after discovery are two
+Lightreel and seven ScrapeCreators units used, with zero and three respectively
+remaining. These are application allocation units, not a verified provider billing
+balance. Cash limit and reservations remain zero; no OpenAI attempt exists.
+
+ChatGPT drafted two variants for selected idea
+`a8eefaa3-04a2-5bbe-94c7-fb795e89c76f`: `Reference-led` (15 seconds) and
+`Creator Fit` (25 seconds), using an original writing-clarity before/after example.
+Authenticated `save_creator_scripts` succeeded as job
+`b793fa00-7f45-416c-947b-11899a968e34`, captured DNA version 1, with both variants
+rendered in the actual ChatGPT inline card. The database independently confirms
+`succeeded`, and no provider attempts were added by saving. The draft explicitly
+avoids treating the original detector result as verified. The timing is an unfilmed
+estimate and should be checked for natural delivery/readability before production.
+
+Proof conversation: https://chatgpt.com/c/6ac9096f-b574-83eb-bfce-6362eb4ed0ec
+(requires the user's ChatGPT access; it is not a public share link).
+
+A fresh ChatGPT conversation then called `render_creator_job` for the saved script
+job and displayed both persisted variants, captured DNA version 1 and script version
+1. Cross-chat proof: https://chatgpt.com/c/6ac90a8b-6418-83eb-adaa-515c9f27b388.
+Local visual evidence is `.context/kettle-live-scripts.png` (not committed).
+No additional job or provider request is needed to reopen these saved results.
+The bounded development journey is now testable; fresh research would require an
+explicit new allocation because the application's two Lightreel units are consumed.
+This does not establish that the provider's entire trial is exhausted.
