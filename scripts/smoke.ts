@@ -26,6 +26,9 @@ try {
   const authRuntime = await fetch(`${base}/__fixture/auth`, { method: 'POST' });
   assert.equal(authRuntime.status, 200);
   assert.deepEqual(await authRuntime.json(), { status: 'passed', fixture: true });
+  const creatorTransport = await fetch(`${base}/__fixture/creator-transport`, { method: 'POST' });
+  assert.equal(creatorTransport.status,200);
+  assert.deepEqual(await creatorTransport.json(),{status:'passed',fixture:true});
   await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)));
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map((tool) => tool.name), ['kettle_diagnostic']);

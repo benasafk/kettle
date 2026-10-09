@@ -33,7 +33,9 @@ export async function boundedJson(fetcher: Fetch, url: URL, init: RequestInit,
   try {
     return await Promise.race([deadline, (async () => {
       try {
-        const response = await fetcher(url.href, { ...init, redirect: 'error', signal: controller.signal });
+        // Workers supports manual/follow only. Manual preserves no-redirect safety;
+        // 3xx responses fail the status check below without forwarding credentials.
+        const response = await fetcher(url.href, { ...init, redirect: 'manual', signal: controller.signal });
         if (controller.signal.aborted) {
           void response.body?.cancel().catch(() => {}); return evidence('timeout');
         }
