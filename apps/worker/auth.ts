@@ -1,3 +1,5 @@
+import { createCreatorOperations } from '../../packages/application/creator-operations.ts';
+import { createCreatorSupabaseRepository } from '../../packages/database/creator-supabase.ts';
 import { createOperations } from '../../packages/application/operations.ts';
 import { discover, remoteVerifier, validateConfig, type AuthConfig } from '../../packages/auth/index.ts';
 import { createSupabaseIdentityResolver, createSupabaseRepository } from '../../packages/database/supabase.ts';
@@ -13,7 +15,8 @@ export async function authServices(env: Env, config: AuthConfig) {
   const metadata = await discover(config);
   const verifier = remoteVerifier(config, metadata, createSupabaseIdentityResolver(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
   const operations = createOperations(verifier, createSupabaseRepository(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
+  const creatorOperations = createCreatorOperations(verifier, createCreatorSupabaseRepository(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
   const websiteVerifier = remoteVerifier(config, metadata, createSupabaseIdentityResolver(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!), config.clientId);
   const websiteOperations = createOperations(websiteVerifier, createSupabaseRepository(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!));
-  return { config, metadata, verifier, operations, websiteVerifier, websiteOperations };
+  return { config, metadata, verifier, operations, creatorOperations, websiteVerifier, websiteOperations };
 }

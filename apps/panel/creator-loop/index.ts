@@ -176,12 +176,13 @@ export function mountCreatorReview(root: HTMLElement): {
     }
     if (state.kind === 'saved') {
       const dna = state.dna;
-      const fictional = state.preview || dna.evidence.some(e => e.origin === 'fixture');
-      content.append(el('p', fictional ? 'Fictional preview · No live scan or saved changes.'
+      const fictional = dna.contains_fixture_data || dna.evidence.some(e => e.origin === 'fixture');
+      content.append(el('p', state.preview ? 'Fictional preview · No live scan or saved changes.'
+        : fictional ? 'Saved Creator DNA · Contains fictional test data. This is not live provider evidence.'
         : 'Saved Creator DNA · Corrections are made through chat.', 'kc-notice'));
       const review = el('section', undefined, 'kc-stack');
       review.setAttribute('aria-label', 'Creator DNA');
-      review.append(el('h3', 'Creator DNA'), el('p', `${fictional ? 'Preview' : 'Saved'} version ${dna.version} · Created ${date(dna.created_at)}`, 'kc-meta'),
+      review.append(el('h3', 'Creator DNA'), el('p', `${state.preview ? 'Preview' : 'Saved'} version ${dna.version} · Created ${date(dna.created_at)}`, 'kc-meta'),
         rows([['Scan', scanLabels[dna.scan_status]],
           ['Video coverage', `${dna.coverage.unique_videos} unique ${dna.coverage.unique_videos === 1 ? 'video' : 'videos'} returned · up to ${dna.requested_videos} requested`],
           ['Oldest post', date(dna.coverage.oldest_published_at)], ['Newest post', date(dna.coverage.newest_published_at)]]),
@@ -211,7 +212,7 @@ export function mountCreatorReview(root: HTMLElement): {
             if (o.metrics) group.append(rows([['Views', number(o.metrics.views)], ['Likes', number(o.metrics.likes)],
               ['Comments', number(o.metrics.comments)], ['Shares', number(o.metrics.shares)]]));
             else group.append(el('p', 'Metrics not supplied for this evidence.', 'kc-meta'));
-            source(group, o.url, fictional || o.origin === 'fixture', `claim-${claim.id}-${ref.observation_id}`);
+            source(group, o.url, state.preview || fictional || o.origin === 'fixture', `claim-${claim.id}-${ref.observation_id}`);
             evidence.append(group);
           }
           block.append(evidence);
@@ -221,7 +222,7 @@ export function mountCreatorReview(root: HTMLElement): {
       content.append(review);
       for (const node of content.querySelectorAll<HTMLDetailsElement>('details')) node.open = open.has(node.dataset.key);
       restoreFocus(review.querySelector('h3')!);
-      announce(`${fictional ? 'Preview' : 'Saved'} DNA version ${dna.version} shown.`);
+      announce(`${state.preview ? 'Preview' : 'Saved'} DNA version ${dna.version} shown.${fictional ? ' Contains fictional test data.' : ''}`);
       return;
     }
     // These branches deliberately accept only D0 entities, never a copied view schema.

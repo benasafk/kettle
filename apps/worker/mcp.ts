@@ -1,3 +1,6 @@
+import { creatorContracts } from '../../packages/contracts/creator-operations.ts';
+import type { createCreatorOperations } from '../../packages/application/creator-operations.ts';
+import { registerCreatorReviewResource, CREATOR_REVIEW_URI } from './creator-review-resource.ts';
 import { ListToolsRequestSchema, ToolSchema, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
@@ -13,6 +16,7 @@ export interface McpAuth {
   config: AuthConfig;
   verifier: IdentityVerifier;
   operations: ReturnType<typeof createOperations>;
+  creatorOperations?: ReturnType<typeof createCreatorOperations>;
 }
 export async function handleMcp(request: Request, auth?: McpAuth): Promise<Response> {
   const token = bearer(request);
@@ -54,6 +58,42 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
       _meta: { securitySchemes, ...(tool.ui ? { ui: tool.ui } : {}) },
     };
   });
+  const creatorTools = [
+    { name: 'get_creator_dna', operation: 'get_creator_dna' as const,
+      description: 'Read saved Creator DNA by its explicit DNA ID, optionally at a historical version. Returns permitted evidence and limitations. Does not scan profiles or start research.', ui: undefined as { resourceUri: string } | undefined },
+    { name: 'render_creator_dna', operation: 'get_creator_dna' as const,
+      description: 'Show saved Creator DNA as an inline review card using its explicit DNA ID. After a correction, call this to show the saved version. Does not scan, research or generate.', ui: { resourceUri: CREATOR_REVIEW_URI } },
+    { name: 'correct_creator_dna', operation: 'correct_creator_dna' as const,
+      description: 'Save user-requested corrections to existing Creator DNA traits. Read the current DNA first and use its claim IDs and version. Use a new request ID for each intended correction; reuse it only for an exact retry. On version conflict, reread and reconcile with the user before retrying. Preserves history; does not scan or generate.', ui: undefined },
+  ].map(tool => {
+    const contract = creatorContracts[tool.operation];
+    const securitySchemes = [{ type: 'oauth2', scopes: [contract.scope] }];
+    return { ...tool, contract, securitySchemes,
+      annotations: { readOnlyHint: contract.readOnly, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: { securitySchemes, ...(tool.ui ? { ui: tool.ui } : {}) },
+    };
+  });
+  if (auth?.creatorOperations) {
+    const operations = auth.creatorOperations;
+    registerCreatorReviewResource(server);
+    for (const tool of creatorTools) {
+      const { contract } = tool;
+      server.registerTool(tool.name, {
+        description: tool.description, inputSchema: contract.input,
+        outputSchema: contract.output.options[0], annotations: tool.annotations, _meta: tool._meta,
+      }, async (input: unknown) => {
+        const result = await operations.execute(tool.operation, token, input);
+        const needsAuth = !result.ok && (result.error.code === 'UNAUTHENTICATED'
+          || (result.error.code === 'FORBIDDEN' && token && !(await auth.verifier.verify(token))?.scopes.includes(contract.scope)));
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+          structuredContent: result, isError: !result.ok,
+          ...(needsAuth ? { _meta: { 'mcp/www_authenticate': [challenge(auth.config,
+            result.error.code === 'FORBIDDEN' ? 'insufficient_scope' : 'invalid_token', contract.scope)] } } : {}),
+        };
+      });
+    }
+  }
   if (auth) {
     registerProjectReviewResource(server);
     for (const tool of productTools) {
@@ -92,6 +132,13 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
   };
   const descriptors: AuthTool[] = [diagnostic];
   if (auth) for (const tool of productTools) {
+    descriptors.push({ name: tool.name, description: tool.description,
+      inputSchema: ToolSchema.shape.inputSchema.parse({ ...z.toJSONSchema(tool.contract.input), type: 'object' }),
+      outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(tool.contract.output), type: 'object' }),
+      annotations: tool.annotations, securitySchemes: tool.securitySchemes, _meta: tool._meta,
+    });
+  }
+  if (auth?.creatorOperations) for (const tool of creatorTools) {
     descriptors.push({ name: tool.name, description: tool.description,
       inputSchema: ToolSchema.shape.inputSchema.parse({ ...z.toJSONSchema(tool.contract.input), type: 'object' }),
       outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(tool.contract.output), type: 'object' }),
