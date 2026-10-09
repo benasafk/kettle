@@ -23,6 +23,15 @@ test('trial-only authenticated MCP profile-to-DNA-to-ideas-to-saved-ChatGPT-scri
   for(const f of (await readdir('supabase/migrations')).filter(f=>f.endsWith('.sql')).sort())await db.exec(await readFile(`supabase/migrations/${f}`,'utf8'));
   await db.exec(await readFile('supabase/seed.sql','utf8'));
   const identity=await fixtureAuth(),token=await identity.token(),f=providerHttpFixture();
+  const seedUrl=f.input.request.supplied_url+'/video/7685478377012071694';
+  const providerFetch=f.options.fetch;
+  f.options.fetch=async(url,init)=>{
+    if(new URL(url).hostname==='api.lightreel.ai' && JSON.parse(init.body as string).response_fields?.summary){
+      f.http.push({url,init});
+      return Response.json({conversationId:'synthetic-seed-review',answer:{video_url:seedUrl,summary:'An attributed review of the supplied desk setup video.',access_basis:'transcript_or_caption_only',limitations:['Synthetic test response; no real video access.']}});
+    }
+    return providerFetch(url,init);
+  };
   const dbCalls:{operation:string;owner:string;input:unknown}[]=[];
   const sql=async(operation:string,owner:string,input:unknown)=>db.transaction(async tx=>{
     dbCalls.push({operation,owner,input});await tx.exec('set local role service_role');
@@ -45,7 +54,7 @@ test('trial-only authenticated MCP profile-to-DNA-to-ideas-to-saved-ChatGPT-scri
   async function run(id:string){await runCreatorPipelineJob(repository,creatorRepository,accountA,id,stored=>{
     providerConstructions++;
     const captured=stored.kind==='scan'?undefined:StoredCreatorAnalysis.parse((stored.captured as {stored:unknown}).stored);
-    return createCreatorPipelineProvider({...f.options,credentials:{scrapeCreators:f.options.credentials.scrapeCreators,lightreel:f.options.credentials.lightreel},canProcessDna:view=>!!captured&&canProcessCapturedDna(captured,view)});
+    return createCreatorPipelineProvider({...f.options,...(stored.kind==='scan'?{seedUrl}:{}),credentials:{scrapeCreators:f.options.credentials.scrapeCreators,lightreel:f.options.credentials.lightreel},canProcessDna:view=>!!captured&&canProcessCapturedDna(captured,view)});
   },{scrapecreators:0,lightreel:0,openai:0},async(_name,fn)=>fn());}
   const created=SaveProjectOutput.parse(await operations.execute('save_project',token,createInput()));assert.ok(created.ok);
   const projectId=created.data.project.id;
@@ -60,15 +69,17 @@ test('trial-only authenticated MCP profile-to-DNA-to-ideas-to-saved-ChatGPT-scri
     assert.deepEqual(tool.securitySchemes,[{type:'oauth2',scopes:[contract.scope]}]);
   }
   assert.ok(!listing.result.tools.some(t=>t.name==='start_creator_scripts'),'API model generation hidden during trial');
-  const scanInput={project_id:projectId,request_id:crypto.randomUUID(),scan:f.input.request};
+  const scanInput={project_id:projectId,request_id:crypto.randomUUID(),scan:f.input.request,seed_url:seedUrl};
   let scan=job(await call('start_creator_scan',scanInput));assert.equal(scan.state,'queued');assert.equal(f.http.length,0);
   await run(scan.id);scan=job(await call('render_creator_job',{job_id:scan.id}));assert.equal(scan.state,'succeeded');assert.equal(scan.result?.kind,'scan');
-  assert.equal(f.http.length,2);assert.equal(scan.result!.kind,'scan');if(scan.result!.kind!=='scan')throw Error('scan');
+  assert.equal(f.http.length,3);assert.equal(new URL(f.http[0]!.url).hostname,'api.lightreel.ai');assert.equal(scan.result!.kind,'scan');if(scan.result!.kind!=='scan')throw Error('scan');
   const dna=scan.result!.dna;
+  assert.equal(dna.seed_review?.url,seedUrl);assert.equal(dna.seed_review?.access_basis,'transcript_or_caption_only');
+  assert.ok(!JSON.stringify(dna.seed_review).includes('conversation_id'));
   const recInput={dna_id:dna.dna_id,expected_version:dna.version,request_id:crypto.randomUUID()};
   let rec=job(await call('start_creator_recommendations',recInput));await run(rec.id);rec=job(await call('render_creator_job',{job_id:rec.id}));
   assert.equal(rec.state,'succeeded');if(rec.result?.kind!=='recommendations')throw Error(JSON.stringify(rec));
-  const batch=rec.result.batch;assert.equal(batch.ideas.length,1);assert.equal(f.http.length,4);
+  const batch=rec.result.batch;assert.equal(batch.ideas.length,1);assert.equal(f.http.length,5);
   const variants=creatorScriptsFixture().variants.map(({id:_id,...v})=>({...v,reference_ids:batch.ideas[0]!.reference_ids}));
   const saveInput={batch_id:batch.id,idea_id:batch.ideas[0]!.id,request_id:crypto.randomUUID(),variants};
   let saved=job(await call('save_creator_scripts',saveInput));const constructions=providerConstructions,requests=f.http.length;
@@ -82,7 +93,7 @@ test('trial-only authenticated MCP profile-to-DNA-to-ideas-to-saved-ChatGPT-scri
   assert.deepEqual(job(await call('get_creator_job',{job_id:saved.id})),saved);
   assert.equal(dispatches.length,dispatchCount);assert.equal(f.http.length,requests);
   assert.ok(!f.http.some(r=>new URL(r.url).hostname==='api.openai.com'));
-  const attemptRows=await db.query<{provider:string}>('select provider from public.creator_attempts');assert.equal(attemptRows.rows.length,4);assert.ok(attemptRows.rows.every(r=>r.provider!=='openai'));
+  const attemptRows=await db.query<{provider:string}>('select provider from public.creator_attempts');assert.equal(attemptRows.rows.length,5);assert.ok(attemptRows.rows.every(r=>r.provider!=='openai'));
   assert.deepEqual((await db.query('select limit_microusd,reserved_microusd from public.creator_pipeline_budget')).rows,[{limit_microusd:0,reserved_microusd:0}]);
   const before=dbCalls.length;
   const unauth=await (await rpc('tools/call',{name:'get_creator_job',arguments:{job_id:saved.id}})).json() as any;

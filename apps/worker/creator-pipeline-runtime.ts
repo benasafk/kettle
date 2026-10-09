@@ -47,10 +47,11 @@ export class CreatorPipelineWorkflow extends WorkflowEntrypoint<Env,{job_id:stri
       return value as T;
     };
     const factory=(job:StoredCreatorJob)=>{
-      const captured=z.object({stored:StoredCreatorAnalysis.optional()}).parse(job.captured);
+      const captured=z.object({stored:StoredCreatorAnalysis.optional(),seed_url:z.string().optional()}).parse(job.captured);
       return createCreatorPipelineProvider({fetch:(url,init)=>fetch(url,init),
         credentials:{scrapeCreators:this.env.SCRAPECREATORS_API_KEY!,lightreel:this.env.LIGHTREEL_API_KEY!},
         model:this.env.CREATOR_MODEL!,maxOutputTokens:6000,region:'US',maxHistoryReads:0,
+        ...(captured.seed_url?{seedUrl:captured.seed_url}:{}),
         permission:{status:'approved',basis:this.env.CREATOR_SOURCE_PERMISSION_BASIS!,permitted_uses:['store','display','model_processing'],retention:'Development proof only; source records are restricted to the allocated test account and require explicit retention review before production.'},
         canProcessDna:view=>Boolean(captured.stored&&canProcessCapturedDna(captured.stored,view)),
       });

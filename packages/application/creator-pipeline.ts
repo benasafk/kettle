@@ -49,8 +49,24 @@ export function createPipelineOperations(verifier:IdentityVerifier, repository:P
     }catch{return failure('UNAVAILABLE');}
   }};
 }
+// These codes contain only adapter enums and an HTTP status, never raw response text.
+const providerDiagnosticPattern = 'creator_provider_(?:transport|malformed|permission|unavailable)(?:_(?:timeout|network|oversized|malformed|http))?(?:_[1-5][0-9]{2})?';
+const providerDiagnosticExact = new RegExp(`^${providerDiagnosticPattern}$(?![\\s\\S])`);
+const wrappedProviderDiagnostic = new RegExp(`(?:^|[\\s:(])creator_attempt_needs_reconciliation:(${providerDiagnosticPattern})(?=$|[\\s)'\",])`);
+function safeProviderDiagnostic(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  if (providerDiagnosticExact.test(error.message)) return error.message;
+  // Workflow step failures may wrap our sanitized error and erase its class/properties.
+  // Extract only the exact enum code following our own reconciliation marker.
+  return wrappedProviderDiagnostic.exec(error.message)?.[1];
+}
 export class PipelineRunError extends Error {
-  constructor(readonly state:'failed'|'needs_reconciliation'){super(state==='failed'?'creator_job_blocked':'creator_attempt_needs_reconciliation');}
+  readonly diagnostic: string | undefined;
+  constructor(readonly state:'failed'|'needs_reconciliation', diagnostic?:string){
+    const safe=typeof diagnostic==='string'&&providerDiagnosticExact.test(diagnostic)?diagnostic:undefined;
+    super((state==='failed'?'creator_job_blocked':'creator_attempt_needs_reconciliation')+(safe?`:${safe}`:''));
+    this.diagnostic=safe;
+  }
 }
 export type AttemptCeilings = Record<'scrapecreators'|'lightreel'|'openai',number>;
 export type DurableStep = <T>(name:string,run:()=>Promise<T>)=>Promise<T>;
@@ -73,7 +89,7 @@ export function createGuardedProviderContext(repository:PipelineRepository,job:S
           const saved=z.object({ok:z.literal(true),data:z.object({status:z.literal('completed'),receipt:z.unknown()})})
             .parse(await repository.call('complete_creator_attempt',job.account_id,{job_id:job.id,key,receipt}));
           return saved.data.receipt;
-        }catch{throw new PipelineRunError('needs_reconciliation');}
+        }catch(error){throw new PipelineRunError('needs_reconciliation',safeProviderDiagnostic(error));}
       });
     }};
 }
@@ -81,6 +97,9 @@ export function createGuardedProviderContext(repository:PipelineRepository,job:S
 export function canProcessCapturedDna(stored:z.infer<typeof StoredCreatorAnalysis>,view:ReturnType<typeof projectCreatorDna>):boolean {
   const expected=projectCreatorDna(stored);
   if(JSON.stringify(view)!==JSON.stringify(expected)||expected.contains_fixture_data)return false;
+  const review=stored.analysis.seed_review;
+  if(view.seed_review && (!review || review.provenance.origin!=='live' || review.provenance.permission.status!=='approved' ||
+    !review.provenance.permission.permitted_uses.includes('model_processing')))return false;
   const observations=new Map([...stored.analysis.scan.profile_observations,...stored.analysis.scan.video_observations].map(o=>[o.id,o]));
   return expected.claims.every(c=>c.evidence.every(e=>{
     const o=observations.get(e.observation_id);
@@ -100,8 +119,9 @@ export async function runCreatorPipelineJob(repository:PipelineRepository,creato
     const context=createGuardedProviderContext(repository,job,ceilings,durableStep);
     let output:NonNullable<CreatorJobView['result']>;
     if(job.kind==='scan') {
-      const captured=z.object({scan:ProfileScanRequest}).parse(job.captured);
+      const captured=z.object({scan:ProfileScanRequest,seed_url:z.string().optional()}).parse(job.captured);
       const analysis=CreatorAnalysis.parse(await providerFor(job).scan(captured.scan,context));
+      if(captured.seed_url && (analysis.seed_review?.url!==captured.seed_url || analysis.seed_review.provenance.origin!=='live'))throw new PipelineRunError('failed');
       if([...analysis.scan.profile_observations,...analysis.scan.video_observations].some(o=>o.provenance.origin!=='live')||JSON.stringify(analysis.scan.request)!==JSON.stringify(captured.scan))throw new PipelineRunError('failed');
       const stored=await durableStep('save-dna',()=>createCreatorIngestion(creatorRepository)(accountId,{project_id:job.project_id,request_id:job.id,analysis}));
       if(!stored.ok)throw new PipelineRunError('failed');
@@ -133,6 +153,7 @@ export async function runCreatorPipelineJob(repository:PipelineRepository,creato
   }catch(error){
     const state=error instanceof PipelineRunError?error.state:
       error instanceof Error&&error.message.includes('creator_attempt_needs_reconciliation')?'needs_reconciliation':'failed';
-    await durableStep('record-failure',()=>repository.call('finish_creator_job',accountId,{job_id:jobId,state,result:null,message:state}));
+    const diagnostic=error instanceof PipelineRunError?error.diagnostic:safeProviderDiagnostic(error);
+    await durableStep('record-failure',()=>repository.call('finish_creator_job',accountId,{job_id:jobId,state,result:null,message:diagnostic?`${state}:${diagnostic}`:state}));
   }
 }

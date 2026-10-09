@@ -57,7 +57,7 @@ test('ambiguous research POST is never automatically retried, including same-job
   const { dna } = await setup(); const f = providerHttpFixture(); let calls = 0;
   const p = createCreatorPipelineProvider({ ...f.options, fetch: async () => { calls++; throw Error('secret-key'); } });
   const guard = fakeGuard();
-  await assert.rejects(p.recommend(dna, guard.context), /^Error: creator_provider_transport$/);
+  await assert.rejects(p.recommend(dna, guard.context), /^Error: creator_provider_transport_network$/);
   await assert.rejects(p.recommend(dna, guard.context), /reconciliation/);
   assert.equal(calls, 1);
 });

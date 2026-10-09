@@ -16,6 +16,8 @@ export function creatorFailure(code: Failure['error']['code']): Failure {
 /** Pure projection. Never serialize the internal stored envelope to a public client. */
 export function projectCreatorDna(stored: StoredCreatorAnalysis): CreatorDnaView {
   const { scan, dna } = stored.analysis;
+  const review=stored.analysis.seed_review;
+  const reviewVisible=review && review.provenance.permission.status!=='needs_review' && review.provenance.permission.permitted_uses.includes('display');
   const observations = [...scan.profile_observations, ...scan.video_observations];
   const displayable = observations.filter(o => o.provenance.permission.status !== 'needs_review' && o.provenance.permission.permitted_uses.includes('display'));
   const allowed = new Set(displayable.map(o => o.id));
@@ -26,7 +28,9 @@ export function projectCreatorDna(stored: StoredCreatorAnalysis): CreatorDnaView
     dna_id: stored.dna_id, project_id: stored.project_id, snapshot_id: dna.id, profile: dna.profile,
     version: dna.version, created_at: dna.created_at, source_scan_id: scan.id, scan_status: scan.status,
     coverage: { unique_videos: scan.coverage.unique_videos, oldest_published_at: scan.coverage.oldest_published_at, newest_published_at: scan.coverage.newest_published_at },
-    contains_fixture_data: observations.some(o => o.provenance.origin === 'fixture'),
+    contains_fixture_data: observations.some(o => o.provenance.origin === 'fixture') || review?.provenance.origin==='fixture',
+    ...(reviewVisible?{seed_review:{url:review.url,provider:review.provider,summary:review.summary,access_basis:review.access_basis,
+      limitations:review.limitations,retrieved_at:review.provenance.retrieved_at,origin:review.provenance.origin}}:{}),
     requested_videos: scan.request.max_videos, coverage_limited: true,
     claims, evidence: displayable.filter(o => referenced.has(o.id)).map(o => ({
       observation_id: o.id, url: o.canonical_url, retrieved_at: o.provenance.retrieved_at,
@@ -71,6 +75,8 @@ export function createCreatorIngestion(repository: CreatorRepository) {
     const input = IngestCreatorAnalysisInput.safeParse(rawInput);
     if (!Id.safeParse(accountId).success || !input.success) return creatorFailure('VALIDATION_ERROR');
     const { scan } = input.data.analysis;
+    const review=input.data.analysis.seed_review;
+    if(review && (review.provenance.permission.status==='needs_review'||!review.provenance.permission.permitted_uses.includes('store')))return creatorFailure('FORBIDDEN');
     if (![...scan.profile_observations, ...scan.video_observations].every(o =>
       o.provenance.permission.status !== 'needs_review' && o.provenance.permission.permitted_uses.includes('store'))) return creatorFailure('FORBIDDEN');
     try {

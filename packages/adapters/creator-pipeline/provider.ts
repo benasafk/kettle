@@ -1,41 +1,50 @@
 import { topicalMatchingText } from '../creator-scan/topical-context.ts';
 import { z } from 'zod';
 import { CreatorDnaView } from '../../contracts/creator-operations.ts';
-import { CreatorAnalysis, ProfileScanRequest, ObservationProvenance } from '../../contracts/creator-profile.ts';
+import { CreatorAnalysis, ProfileScanRequest, ObservationProvenance, LightreelSeedReview } from '../../contracts/creator-profile.ts';
 import { RecommendationBatch, CreatorScriptSet, FilmingVariant,
   type CreatorPipelineProvider, type CreatorProviderContext } from '../../contracts/creator-pipeline.ts';
 import { buildGroundedCreatorDna } from '../creator-scan/dna.ts';
 import { characterizeFeed, characterizeProfile } from '../creator-scan/scrapecreators-characterization.ts';
-import { boundedJson, type Fetch } from './http.ts';
+import { boundedJson, type Fetch, type HttpEvidence } from './http.ts';
 import { normalizeLiveTikTokScan, type ScanReceipt } from './live-scan.ts';
 import { parseTikTokUrl } from './tiktok-url.ts';
 import { readTikTokDetail } from './detail-json.ts';
 import { readLightreelSubmission, readLightreelHistory } from './lightreel-json.ts';
 import { readOpenAiResponse } from './openai-json.ts';
 import { profileRequest, feedRequest, detailRequest, researchBody, historyRequest, scriptBody } from './requests.ts';
+import { readLightreelSeedReview, seedReviewBody } from './seed-review.ts';
 import { receiptIds } from './ids.ts';
 import { sanitizedScrape, sourceObservedAt } from './sanitize.ts';
 
 // Durable success receipt, not a parallel business/result schema.
 const receipt = z.object({ id: z.uuid(), status: z.number().int().min(200).max(299),
-  body: z.string().max(262144), retrieved_at: z.iso.datetime(), latency_ms: z.number().int().nonnegative(),
+  body: z.string().max(262144).refine(v => new TextEncoder().encode(v).length <= 262144), retrieved_at: z.iso.datetime(), latency_ms: z.number().int().nonnegative(),
   failure: z.null(), source_observed_at: z.iso.datetime().nullable() });
 /** Error text is safe to persist. Any dispatched failure may have incurred cost; never retry here. */
 export class CreatorProviderError extends Error {
   constructor(readonly code: 'transport' | 'malformed' | 'permission' | 'unavailable',
-    readonly status: number | null = null) { super(`creator_provider_${code}`); }
+    readonly status: number | null = null, readonly failure: HttpEvidence['failure'] = null) {
+    const safeCode = ['transport','malformed','permission','unavailable'].includes(code) ? code : 'malformed';
+    const safeFailure = failure && ['timeout','network','oversized','malformed','http'].includes(failure) ? `_${failure}` : '';
+    const safeStatus = status !== null && Number.isInteger(status) && status >= 100 && status <= 599 ? `_${status}` : '';
+    super(`creator_provider_${safeCode}${safeFailure}${safeStatus}`);
+  }
 }
 export type CreatorPipelineAdapterOptions = {
   fetch: Fetch;
   credentials: { scrapeCreators: string; lightreel: string; openai?: string };
+  /** Trusted canonical supplied video URL; never inferred from a profile or provider response. */
+  seedUrl?: string;
   model: string; maxOutputTokens: number; region: string;
   permission: z.infer<typeof ObservationProvenance>['permission'];
   /** Trusted server checks underlying source/model rights; the display view alone cannot establish them. */
   canProcessDna(dna: CreatorDnaView): boolean;
   /** Upper bound on known-ID history reads in this invocation; no retry of research POST. */
   maxHistoryReads?: number;
-  timeouts?: { scrapeMs?: number; researchMs?: number; modelMs?: number };
+  timeouts?: { scrapeMs?: number; researchMs?: number; seedReviewMs?: number; modelMs?: number };
 };
+const seedReviewCaveat = 'Supplied video review, not whole-profile DNA. Reported access is a Lightreel claim, not independently verified video evidence.';
 const modelOutput = z.strictObject({ variants: z.array(FilmingVariant.omit({ id: true })).min(2).max(3) });
 const modelSchema = z.toJSONSchema(modelOutput) as Record<string, unknown>;
 
@@ -53,8 +62,9 @@ export function createCreatorPipelineProvider(options: CreatorPipelineAdapterOpt
   if (!/^[A-Z]{2}$/.test(options.region)) throw new Error('Invalid region');
   // Validate model configuration without executing or reading environment variables.
   scriptBody(options.model, options.maxOutputTokens, {}, modelSchema);
+  const seedUrl = options.seedUrl === undefined ? undefined : LightreelSeedReview.shape.url.parse(options.seedUrl);
   const timeouts = { scrape: options.timeouts?.scrapeMs ?? 30_000,
-    research: options.timeouts?.researchMs ?? 180_000, model: options.timeouts?.modelMs ?? 60_000 };
+    research: options.timeouts?.researchMs ?? 180_000, seedReview: options.timeouts?.seedReviewMs ?? 540_000, model: options.timeouts?.modelMs ?? 60_000 };
   for (const n of Object.values(timeouts)) if (!Number.isInteger(n) || n < 1 || n > 600_000) throw new Error('Invalid timeout');
   const provenance = (r: ScanReceipt, endpoint: string, source_url: string) => ObservationProvenance.parse({
     provider: 'scrapecreators', endpoint, origin: 'live', retrieved_at: r.retrieved_at,
@@ -62,7 +72,7 @@ export function createCreatorPipelineProvider(options: CreatorPipelineAdapterOpt
   });
   const checkDna = (raw: CreatorDnaView) => {
     const dna = CreatorDnaView.parse(raw);
-    if (dna.contains_fixture_data || dna.evidence.some(e => e.origin !== 'live') || options.canProcessDna(dna) !== true) {
+    if (dna.contains_fixture_data || (dna.seed_review && dna.seed_review.origin !== 'live') || dna.evidence.some(e => e.origin !== 'live') || options.canProcessDna(dna) !== true) {
       throw new CreatorProviderError('permission');
     }
     return dna;
@@ -70,27 +80,43 @@ export function createCreatorPipelineProvider(options: CreatorPipelineAdapterOpt
   async function call(context: CreatorProviderContext, key: string,
     provider: 'scrapecreators' | 'lightreel' | 'openai',
     operation: 'profile' | 'feed' | 'research' | 'poll' | 'video' | 'generate',
-    url: URL, body: string | undefined, decode: (body: string) => string) {
+    url: URL, body: string | undefined, decode: (body: string) => string, timeoutMs?: number) {
     const apiKey = provider === 'scrapecreators' ? credentials.scrapeCreators : provider === 'lightreel' ? credentials.lightreel : credentials.openai;
     if (!apiKey) throw new Error('Missing provider credential');
     const raw = await context.call(key, provider, operation, async () => {
       const r = await boundedJson(options.fetch, url, { method: body === undefined ? 'GET' : 'POST',
         headers: { ...(provider === 'scrapecreators' ? { 'x-api-key': apiKey } : { Authorization: `Bearer ${apiKey}` }),
           'Content-Type': 'application/json', Accept: 'application/json' }, body },
-      { timeoutMs: operation === 'poll' ? Math.min(timeouts.research, 30_000) :
-        provider === 'scrapecreators' ? timeouts.scrape : provider === 'lightreel' ? timeouts.research : timeouts.model });
-      if (r.failure !== null) throw new CreatorProviderError('transport', r.status);
+      { maxBytes: provider === 'scrapecreators' && operation === 'feed' ? 2_097_152 : 262_144,
+        timeoutMs: timeoutMs ?? (operation === 'poll' ? Math.min(timeouts.research, 30_000) :
+        provider === 'scrapecreators' ? timeouts.scrape : provider === 'lightreel' ? timeouts.research : timeouts.model) });
+      if (r.failure !== null) throw new CreatorProviderError('transport', r.status, r.failure);
       try {
         const source_observed_at = provider === 'scrapecreators' ? sourceObservedAt(r.body) : null;
         return receipt.parse({ ...r, id: context.newId(), source_observed_at, body: decode(r.body) });
-      } catch { throw new CreatorProviderError('malformed', r.status); }
+      } catch { throw new CreatorProviderError('malformed', r.status, 'malformed'); }
     });
-    return receipt.parse(raw);
+    try { return receipt.parse(raw); } catch { throw new CreatorProviderError('malformed'); }
   }
   return {
     async scan(raw, context) {
       const request = ProfileScanRequest.parse(raw);
       if (request.max_pages > 2 || request.max_videos > 10) throw new Error('Pilot scan exceeds ten videos/two pages');
+      let seedReview: z.infer<typeof LightreelSeedReview> | undefined;
+      let seedReceipt: z.infer<typeof receipt> | undefined;
+      if (seedUrl !== undefined) {
+        if (!seedUrl.startsWith(request.supplied_url.replace(/\/$/,'') + '/video/')) throw new CreatorProviderError('permission');
+        seedReceipt = await call(context, 'seed-review', 'lightreel', 'research', new URL('https://api.lightreel.ai/v1/chat'),
+          seedReviewBody(seedUrl), body => JSON.stringify(readLightreelSeedReview(body, seedUrl)), timeouts.seedReview);
+        // Revalidate durable replay too. No callbacks/history reads or retry/resubmission path.
+        const review = readLightreelSeedReview(seedReceipt.body, seedUrl);
+        seedReview = LightreelSeedReview.parse({ url: seedUrl, provider: 'lightreel', conversation_id: review.conversationId,
+          summary: review.answer.summary, access_basis: review.answer.access_basis,
+          limitations: review.answer.limitations.length < 20 ? [seedReviewCaveat, ...review.answer.limitations] : review.answer.limitations,
+          provenance: { provider: 'lightreel', endpoint: '/v1/chat', origin: 'live',
+            retrieved_at: seedReceipt.retrieved_at, source_observed_at: null, source_url: seedUrl,
+            permission, modalities: ['metadata'] } });
+      }
       const profile = await call(context, 'profile', 'scrapecreators', 'profile', profileRequest(request.supplied_url), undefined,
         body => {
           const clean = sanitizedScrape(body, 'profile');
@@ -118,12 +144,19 @@ export function createCreatorPipelineProvider(options: CreatorPipelineAdapterOpt
       const scan = normalizeLiveTikTokScan({ id: newId(), created_at: profile.retrieved_at, request,
         profileAttempt: profile, feedAttempts: pages, permission,
         latency_ms: profile.latency_ms + pages.reduce((n, p) => n + p.latency_ms, 0) }, newId);
-      return CreatorAnalysis.parse(buildGroundedCreatorDna(scan, { id: newId(), created_at: profile.retrieved_at }, newId));
+      if (seedReceipt) {
+        scan.limitations.push(seedReviewCaveat);
+        scan.cost.attempts.unshift({ id: seedReceipt.id, provider: 'lightreel', outcome: 'succeeded',
+          credits: null, usd: null, usd_basis: 'unknown', conversion_basis: null });
+        scan.cost.latency_ms += seedReceipt.latency_ms;
+      }
+      return CreatorAnalysis.parse({ ...buildGroundedCreatorDna(scan, { id: newId(), created_at: profile.retrieved_at }, newId),
+        ...(seedReview ? { seed_review: seedReview } : {}) });
     },
     async recommend(raw, context) {
       const dna = checkDna(raw);
       const query = researchBody({ profile: dna.profile, dna_version: dna.version,
-        claims: dna.claims, limitations: dna.limitations });
+        claims: dna.claims, limitations: dna.limitations, ...(dna.seed_review ? { supplied_video_review: dna.seed_review } : {}) });
       const research = await call(context, 'research', 'lightreel', 'research', new URL('https://api.lightreel.ai/v1/chat'), query,
         body => JSON.stringify(readLightreelSubmission(body)));
       let result = researchResult(research.body);
@@ -199,14 +232,20 @@ function buildRecommendations(dna: CreatorDnaView, references: RecommendationBat
     if (!ref.caption) continue;
     const tokens = words(ref.caption);
     const claim = topical.find(c => [...words(topicalMatchingText(c))].some(w => tokens.has(w)));
-    if (!claim) continue;
+    const review = dna.seed_review;
+    const reviewMatch = review && ['video_access_reported','transcript_or_caption_only'].includes(review.access_basis) &&
+      [...words(review.summary)].some(w => tokens.has(w));
+    if (!claim && !reviewMatch) continue;
+    const topic = claim?.statement ?? review!.summary.slice(0,2400);
     ideas.push({ id: context.newId(), title: `Test a creator-specific variation ${ideas.length + 1}`,
-      concept: `Create an original video exploring your stated topic: ${claim.statement}`,
-      creator_fit: `Uses DNA v${dna.version} (${claim.basis}): ${claim.statement}`.slice(0,3000),
-      evidence_summary: `Reference caption shares topic language with this DNA claim. ${ref.views === null ? 'Views unavailable.' : `Observed views: ${ref.views}; no performance prediction.`}`,
+      concept: (claim ? `Create an original video exploring your stated topic: ${claim.statement}` :
+        `Create an original video exploring this supplied-video topic: ${topic}`).slice(0,3000),
+      creator_fit: (claim ? `Uses DNA v${dna.version} (${claim.basis}): ${claim.statement}` :
+        `Uses the supplied video review, not whole profile: ${topic}. Access basis: ${review!.access_basis}; provider report, not independent verification.`).slice(0,3000),
+      evidence_summary: `Reference caption shares topic language with ${claim ? 'this DNA claim' : 'the supplied video review, not whole-profile DNA'}. ${ref.views === null ? 'Views unavailable.' : `Observed views: ${ref.views}; no performance prediction.`}`,
       execution: 'Choose one concrete example from your own experience. State the problem, demonstrate your proposed change, and ask a relevant question. These are filming proposals, not observed reference structure.',
       reference_ids: [ref.id], limitations: ['Topic overlap is a lexical baseline, not a validated semantic relevance score.',
-        claim.uncertainty, 'No measured audience demographics, visual analysis or causal performance claim.'] });
+        claim?.uncertainty ?? 'Provider-authored supplied-video review; access and conclusions are not independently verified.', 'No measured audience demographics, visual analysis or causal performance claim.'] });
   }
   return RecommendationBatch.parse({ id: context.newId(), dna_id: dna.dna_id, dna_version: dna.version,
     created_at: context.now(), references, ideas, contains_fixture_data: false,

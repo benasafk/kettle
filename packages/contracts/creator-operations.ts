@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Id, Timestamp, result } from './index.ts';
-import { CreatorAnalysis, CreatorDnaSnapshot, CreatorIdentity, CreatorUrl, CorrectCreatorDnaInput, ProfileScanResult } from './creator-profile.ts';
+import { CreatorAnalysis, CreatorDnaSnapshot, CreatorIdentity, CreatorUrl, CorrectCreatorDnaInput, ProfileScanResult, LightreelSeedReview } from './creator-profile.ts';
 
 export const GetCreatorDnaInput = z.strictObject({ dna_id: Id, version: z.number().int().positive().max(2147483646).optional() });
 /** Server ingestion only. Never accept this shape from a public tool. */
@@ -26,6 +26,9 @@ export const CreatorDnaView = z.strictObject({
   contains_fixture_data: z.boolean(),
   requested_videos: z.number().int().positive(), coverage_limited: z.boolean(),
   claims: CreatorDnaSnapshot.shape.claims,
+  seed_review: z.strictObject({url:LightreelSeedReview.shape.url,provider:LightreelSeedReview.shape.provider,
+    summary:LightreelSeedReview.shape.summary,access_basis:LightreelSeedReview.shape.access_basis,
+    limitations:LightreelSeedReview.shape.limitations,retrieved_at:Timestamp,origin:z.enum(['fixture','live'])}).optional(),
   evidence: z.array(CreatorEvidenceView).max(170),
   withheld_claim_count: z.number().int().nonnegative(),
   limitations: z.array(z.string().max(1000)).max(61),

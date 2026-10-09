@@ -230,3 +230,54 @@ test('saved ChatGPT variants enforce selected reference IDs and unique labels wi
     assert.equal(r.finishes.at(-1).state,'failed');assert.deepEqual(r.providerCalls,[]);
   }
 });
+
+test('guard retains only enum-only provider diagnostics and redacts arbitrary exception text',async()=>{
+  for(const diagnostic of ['creator_provider_transport_http_429','creator_provider_transport_oversized_200','creator_provider_malformed','creator_provider_permission','creator_provider_unavailable_404']){
+    const g=guarded(reservation('acquired'));
+    await assert.rejects(g.context.call('feed:0','scrapecreators','feed',async()=>{throw new Error(diagnostic);}),error=>{
+      assert.ok(error instanceof PipelineRunError);assert.equal(error.diagnostic,diagnostic);
+      assert.equal(error.message,`creator_attempt_needs_reconciliation:${diagnostic}`);return true;
+    });
+  }
+  for(const unsafe of ['secret API key','creator_provider_transport_http_429 secret','creator_provider_transport_http_600','creator_provider_transport_http_200_secret','creator_provider_newreason_500','creator_provider_transport_http_200\nsecret','creator_provider_transport_http_200\n','prefix creator_provider_transport_http_500']){
+    const g=guarded(reservation('acquired'));
+    await assert.rejects(g.context.call('feed:0','scrapecreators','feed',async()=>{throw new Error(unsafe);}),error=>{
+      assert.ok(error instanceof PipelineRunError);assert.equal(error.diagnostic,undefined);
+      assert.equal(error.message,'creator_attempt_needs_reconciliation');return true;
+    });
+    assert.equal(new PipelineRunError('needs_reconciliation',unsafe).diagnostic,undefined);
+  }
+});
+
+test('runner preserves sanitized diagnostic through Workflow error wrapping but public results remain generic',async()=>{
+  const r=runner('scan');
+  const oldCall=r.repository.call;
+  r.repository.call=async(op,owner,input)=>op==='reserve_creator_attempt'?reservation('acquired'):oldCall(op,owner,input);
+  r.provider.scan=async(_request,context)=>context.call('feed:0','scrapecreators','feed',async()=>{throw new Error('creator_provider_transport_oversized_200');}) as never;
+  const wrapped:DurableStep=async(name,run)=>{
+    try{return await run();}catch(error){
+      if(name.startsWith('provider:'))throw new Error(`Workflow step failed: Error: ${(error as Error).message}\nAdditional private runtime context`);
+      throw error;
+    }
+  };
+  await runCreatorPipelineJob(r.repository,r.creatorRepository,account,r.job.id,()=>r.provider,ceilings,wrapped);
+  assert.equal(r.finishes.length,1);
+  assert.equal(r.finishes[0].state,'needs_reconciliation');
+  assert.equal(r.finishes[0].message,'needs_reconciliation:creator_provider_transport_oversized_200');
+  const view=publicCreatorJob({...r.job,...r.finishes[0]});
+  assert.doesNotMatch(JSON.stringify(view),/creator_provider|private runtime/);
+  assert.match(view.message!,/No automatic resubmission/);
+});
+
+test('runner does not persist raw provider or Workflow exception details',async()=>{
+  for(const message of ['secret key in response',
+    'Workflow: creator_attempt_needs_reconciliation:creator_provider_transport_http_500_secret',
+    'Workflow: creator_attempt_needs_reconciliation:creator_provider_unknown_http_500']){
+    const r=runner();r.provider.recommend=async()=>{throw new Error(message);};await r.run();
+    assert.equal(r.finishes[0].message,message.includes('creator_attempt_needs_reconciliation')?'needs_reconciliation':'failed');
+    assert.ok(!r.finishes[0].message.includes('secret'));
+  }
+  const r=runner();r.provider.recommend=async()=>{throw new Error('creator_provider_permission');};await r.run();
+  assert.equal(r.finishes[0].message,'failed:creator_provider_permission');
+  assert.doesNotMatch(JSON.stringify(publicCreatorJob({...r.job,...r.finishes[0]})),/creator_provider/);
+});
