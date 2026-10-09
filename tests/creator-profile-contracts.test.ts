@@ -84,6 +84,11 @@ test('corrections accept text only with version/request IDs, never caller eviden
 
 test('coverage rejects false completion, fabricated date coverage and unresolved errors', () => {
   reject(v => { v.scan.coverage.pages_received = 0; v.scan.coverage.pages = []; v.scan.coverage.stop_reason = 'limit'; });
+  const belowLimit = creatorAnalysisFixture().scan;
+  belowLimit.request.max_pages = 3; belowLimit.video_observations = [];
+  Object.assign(belowLimit.coverage, { unique_videos: 0, oldest_published_at: null, newest_published_at: null,
+    pagination: 'more', stop_reason: 'limit', pages: [{ requested_cursor: null, returned_cursor: 'next', received_items: 0, admitted_observations: 0 }] });
+  assert.equal(ProfileScanResult.safeParse(belowLimit).success, false, 'internally consistent empty page has not reached either limit');
   reject(v => { v.scan.coverage.oldest_published_at = null; });
   reject(v => { v.scan.coverage.errors.push({ code: 'timeout', retryable: false, attempt_id: crypto.randomUUID() }); });
   reject(v => { v.scan.coverage.pagination = 'unknown'; });
