@@ -44,7 +44,7 @@ export function createCreatorReviewController(observer: CreatorReviewObserver, r
     const result = parsed.data;
     if (!result.ok) {
       if (result.error.code === 'UNAVAILABLE' && refresh && dna) {
-        publish('Refresh failed. Previously loaded DNA is shown; try Refresh again.'); return;
+        publish('Refresh failed. Try Refresh again or reopen this review.'); return;
       }
       clear(result.error.code === 'UNAUTHENTICATED' ? 'reauthorize' : 'unavailable'); return;
     }
@@ -81,7 +81,7 @@ export function createCreatorReviewController(observer: CreatorReviewObserver, r
     } catch {
       if (disposed || requestEpoch !== epoch) return;
       pending = undefined;
-      if (timedOut) publish('Refresh timed out. Previously loaded DNA is shown; try Refresh again.');
+      if (timedOut) publish('Refresh timed out. Try Refresh again or reopen this review.');
       else clear('connection'); // Unknown host rejection can be an auth failure.
     } finally { clearTimeout(timer); }
   }

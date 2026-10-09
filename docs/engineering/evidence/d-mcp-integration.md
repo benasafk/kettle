@@ -6,6 +6,58 @@ Branch inspected: `gustasbull/chatgpt-mcp-v1`; clean before fast-forward from
 `4790956`. No reset, rename, discarded edits or copied workspace credentials.
 The PR head is recorded in the PR handoff rather than a self-referential commit ID.
 
+## Saved-view component wiring on canonical UI baseline — 2026-10-09
+
+Merged canonical `86f8327840a883347ddb8d00170d2bffb3d5de44` into the unchanged
+`gustasbull/chatgpt-mcp-v2` branch, preserving `93ce207` and `dafb039`. The previous
+UI gate below is resolved. Production host delivery remains unwired.
+
+`apps/panel/creator-review.ts` exports `mountSavedCreatorReview(root, readDna,
+timeoutMs?)`. It consumes Shanghai's exact `mountCreatorReview` export and renders
+only `loading`, `error`, or `{kind:'saved',dna,preview:false}`. Fictional evidence
+still forces the component's preview banner/inert links. No internal scan/analysis
+states or local component implementation are used.
+
+The adapter returns `receiveInput`, `receiveResult`, `connected`, `refresh`,
+`connectionFailed`, and `dispose`. Future host composition must pass parsed tool
+arguments to `receiveInput`, authenticated **operation output** (the structured
+content, not the MCP envelope) to `receiveResult`, and a callback that invokes only
+`get_creator_dna`. Account/connection changes require disposal and a fresh mount.
+Neither this adapter nor the controller automatically mounts or executes a read.
+
+The merged UI has no action callbacks or refreshing/warning props. Therefore refresh
+is an explicit adapter method, not a new UI button. Saved content remains readable
+without host read capability. A stale-response/timeout warning uses the supported
+error/reopen view instead of silently presenting stale content; explicit retry through
+the adapter can restore the saved view. Shanghai owns any later refresh controls or
+stale-data presentation change. No UI file was edited here.
+
+New `tests/panel/creator-review-integration.test.mjs` bundles the actual adapter and
+component with a test-only public fixture entry using existing esbuild. Chromium
+checks initial render without duplicate reads, explicit single-flight refresh and
+focus/disclosure retention, auth clearing with late completion, timeout/retry, missing
+host capability, wrong-ID rejection, and disposal. The loopback page's CSP blocks
+network connections and remote assets; no unexpected requests or browser errors.
+It is a local component integration test, not an MCP host, Worker resource or ChatGPT
+rendering test. No provider output or real account data is used.
+
+Integration sequence for Bangkok after this PR:
+
+1. Review the proposed bundle/resource names in the prior handoff. Lead supplies
+   approved build entry and authenticated `createCreatorOperations` composition.
+2. A subsequent Berlin PR may bind the MCP Apps transport, resource and read-only
+   tool after the composition lands. Preserve the existing shared descriptor/schema
+   workaround and text fallback using `creatorDnaText` over the public output.
+3. Run real resource/transport/auth isolation tests, then separately authorized
+   ChatGPT acceptance. This PR does not register tools or implement that bridge.
+
+Validation: dedicated Chromium adapter suite passed 6/6 checks (parent plus five
+cases). `npm run check` passed: both TypeScript projects, 148 TypeScript tests,
+dry-run Worker bundle, local workerd smoke, and 15 browser checks.
+`git diff --check` passed. These are local/fixture results, not hosted evidence.
+No mutations, scans/jobs, provider calls, dependencies, shared configuration, auth
+composition or deployment changed. Existing project-review code is untouched.
+
 ## Executable read controller on PR #20 baseline — 2026-10-09
 
 Merged `origin/main` at `26aa6bc` into the existing `gustasbull/chatgpt-mcp-v2`
