@@ -154,3 +154,15 @@ None blocks this local foundation. They gate the relevant Stage 2 live proofs an
 
 These sources establish supported mechanisms, not proof that Kettle's hosted
 integration works. Package versions were checked through npm and exercised locally.
+
+## Creator DNA persistence increment — 2026-10-09
+
+Lead implementation adds account/project-owned immutable scans and DNA versions,
+server-only validated ingestion, and authenticated read/correction factories with
+an allowlisted presentation view. Existing project read/write scopes cover these
+stored resources; research/generation authorization is explicitly separate. Stable
+analysis IDs are distinct from immutable snapshot IDs. Corrections start through
+chat/tool operations, not an inline editor. See the persistence section of
+[contracts](contracts.md) for integration exports, receipt namespace and limits.
+The migration is additive and unapplied to hosted development. Runtime wiring,
+job orchestration, source-retention enforcement and live proof remain subsequent work.
