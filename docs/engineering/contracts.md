@@ -136,3 +136,72 @@ observation time, permitted-use basis, latency and measured/estimated/unknown co
 Scripts have spoken lines, shots, on-screen text, fact/reference IDs, language,
 explicit estimated duration and input versions. Draft schemas enforce structure only;
 Stage 2 must evaluate factual support, provider permissions and script quality.
+
+## D0 creator-profile boundary — 2026-10-09
+
+`packages/contracts/creator-profile.ts` is an additive internal schema module. It
+exports strict Zod schemas and inferred types for `ProfileScanRequest`,
+`CreatorIdentity`, `ObservationProvenance`, `ProfileObservation`, `VideoObservation`,
+`ScanCoverage`, `ScanCostEvidence`, `ProfileScanResult`, `DnaClaim`,
+`CreatorDnaSnapshot`, `CreatorAnalysis`, and `CorrectCreatorDnaInput`.
+It does not change v1 tool registration, OAuth scopes, `drafts.ts`, or existing
+project types. Do not register these as public tools without the application gate.
+
+Generation must validate complete `CreatorAnalysis` envelopes, not just detached
+DNA snapshots: the aggregate checks identity, source scan, observation references,
+modalities and analysis permissions. Distinct dated observations of the same stable
+platform/video ID are retained; observation IDs themselves must be unique. Counts
+are safe nonnegative integers; unavailable metrics are explicit nulls. Unknown cost
+remains null with `usd_basis: unknown`; known USD values require a measurement or
+conversion basis. Native credits remain separate. No budget or permission is granted
+by schema acceptance.
+
+Only TikTok profile scan requests are executable input shapes in this increment;
+Instagram identity vocabulary is reserved for later platform support. Request limits
+are 1–50 videos and 1–3 pages, matching the bounded fixture characterization; these
+are structural ceilings, not an approved live run. URLs must be canonical HTTPS
+platform URLs without credentials/query/fragment. Resolving redirects, preventing
+SSRF, validating video/profile paths and translating provider URLs remain adapter
+responsibilities; URL validation is not permission to fetch.
+
+`complete` means a bounded requested sample reached its video/page limit or the feed
+was exhausted without known omissions/errors. It never means an entire profile was
+scanned. Empty exhausted samples are valid. Partial/unavailable/failed scans retain
+limitations; coverage includes admitted unique counts, page cursors/counts, observed
+publication-date range, omissions and allowlisted errors. Date coverage describes
+admitted observations, not requested time filters. Cursors must be provider pagination
+values, never tokens, cookies or signed URLs. No raw response/error bodies belong in
+these schemas. Cached source observation time is distinct from retrieval time.
+
+DNA claims preserve observed/inferred/user-corrected attribution and explicit
+uncertainty. Video evidence needs a bounded time range, known media duration and
+media-analysis permission. Caption-only pacing and explicitly visual claims fail.
+Image analysis likewise requires media-analysis permission. These structural checks
+cannot understand free-text claims: Generation must test that visual claims are
+marked `requires_video`, that audience inference is labelled inferred, and that
+country-only or small-sample evidence does not support broader demographic or causal
+claims. Factual/evaluation review remains necessary even for valid schemas.
+
+Corrections identify the existing DNA, expected version, request ID and targeted
+claim IDs with replacement text only. Callers cannot replace provenance/evidence.
+The future application must authorize the account, resolve claim membership, append
+new claim/snapshot IDs with `user_corrected` attribution and prior-claim lineage,
+preserve source evidence, reject stale writes, and replay account-scoped receipts.
+A snapshot alone cannot prove that a superseded claim existed. No persistence,
+idempotency, ownership enforcement or correction operation is implemented by D0.
+Correction entry stays in chat first; UI can display read-only DNA and recovery
+states until these operations are integrated. Inline editing is not required yet.
+
+Shared fictional fixtures are exported from
+`packages/contracts/fixtures/creator-profile.ts`:
+`creatorAnalysisFixture()`, `partialScanFixture()`, `unavailableScanFixture()`.
+They return fresh data and are for tests/previews only, never a production fallback.
+Generation's provider-shaped fixtures remain separate. UI must project only the
+visible claims, coverage, evidence and limitations; never expose internal provider
+cursors, accounting attempts or unrestricted provenance through a card/model context.
+A permission-safe public projection is still an application/Integration prerequisite.
+
+Next contract increments: owned associations and repository operations, durable jobs
+and spend reservation/settlement, recommendation batches/selection, then script
+variants. Their public names, scopes, lifecycle rules and migrations are not frozen
+by this first D0 slice. Auth's proposed new scopes remain proposals.
