@@ -1,0 +1,158 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createCreatorPipelineProvider } from '../packages/adapters/creator-pipeline/provider.ts';
+import { fakeGuard, providerHttpFixture } from '../evals/creator-loop/provider-http-fixtures.ts';
+import { projectCreatorDna } from '../packages/application/creator-operations.ts';
+import { CreatorAnalysis } from '../packages/contracts/creator-profile.ts';
+import { RecommendationBatch, CreatorScriptSet } from '../packages/contracts/creator-pipeline.ts';
+import { creatorScriptsFixture } from '../evals/creator-loop/pipeline-fixtures.ts';
+import { creatorDnaViewFixture } from '../evals/creator-loop/dna-view-fixtures.ts';
+
+async function setup() {
+  const f = providerHttpFixture();
+  const provider = createCreatorPipelineProvider(f.options);
+  const guard = fakeGuard();
+  const analysis = await provider.scan(f.input.request, guard.context);
+  const dna = projectCreatorDna({ dna_id: analysis.dna.id,
+    project_id: '00000000-0000-4000-8000-000000000100', analysis });
+  return { f, provider, guard, analysis, dna };
+}
+test('offline full adapter chain uses guarded calls and validates shared envelopes and selection lineage', async () => {
+  const { f, provider, guard, analysis, dna } = await setup();
+  CreatorAnalysis.parse(analysis);
+  assert.equal(analysis.scan.status, 'partial');
+  assert.equal(analysis.scan.cost.attempts.length, 2);
+  assert.deepEqual(guard.calls.map(c => c.key), ['profile', 'feed:0']);
+  const recommendations = fakeGuard();
+  const batch = RecommendationBatch.parse(await provider.recommend(dna, recommendations.context));
+  assert.equal(batch.ideas.length, 1); assert.equal(batch.references.length, 1);
+  assert.equal(batch.dna_version, dna.version);
+  assert.deepEqual(recommendations.calls.map(c => c.operation), ['research', 'video']);
+  const generation = fakeGuard();
+  const scripts = CreatorScriptSet.parse(await provider.generate({ batch, idea_id: batch.ideas[0]!.id, dna }, generation.context));
+  assert.equal(scripts.variants.length, 2); assert.equal(scripts.idea_id, batch.ideas[0]!.id);
+  assert.equal(scripts.dna_id, dna.dna_id);
+  assert.deepEqual(generation.calls.map(c => c.operation), ['generate']);
+  assert.equal(f.http.length, 5);
+  const before = f.http.length;
+  assert.deepEqual(await provider.scan(f.input.request, guard.context), analysis);
+  assert.deepEqual(await provider.recommend(dna, recommendations.context), batch);
+  assert.deepEqual(await provider.generate({ batch, idea_id: batch.ideas[0]!.id, dna }, generation.context), scripts);
+  assert.equal(f.http.length, before, 'recorded successes replay without new fetch');
+  const records = JSON.stringify([...guard.successes.values(), ...recommendations.successes.values(), ...generation.successes.values()]);
+  for (const key of Object.values(f.options.credentials)) assert.ok(!records.includes(key));
+});
+test('guard denial stops dispatch; adapter has no permissive guard or permission default', async () => {
+  const f = providerHttpFixture(); const p = createCreatorPipelineProvider(f.options);
+  const guard = fakeGuard(); guard.context.call = async () => { throw Error('not allocated'); };
+  await assert.rejects(p.scan(f.input.request, guard.context), /not allocated/);
+  assert.equal(f.http.length, 0);
+  const { dna } = await setup();
+  const denied = createCreatorPipelineProvider({ ...f.options, canProcessDna: () => false });
+  await assert.rejects(denied.recommend(dna, fakeGuard().context), /permission/);
+  await assert.rejects(p.recommend(creatorDnaViewFixture(), fakeGuard().context), /permission/);
+  assert.equal(f.http.length, 0);
+});
+test('ambiguous research POST is never automatically retried, including same-job replay', async () => {
+  const { dna } = await setup(); const f = providerHttpFixture(); let calls = 0;
+  const p = createCreatorPipelineProvider({ ...f.options, fetch: async () => { calls++; throw Error('secret-key'); } });
+  const guard = fakeGuard();
+  await assert.rejects(p.recommend(dna, guard.context), /^Error: creator_provider_transport$/);
+  await assert.rejects(p.recommend(dna, guard.context), /reconciliation/);
+  assert.equal(calls, 1);
+});
+test('known conversation ID enables bounded history only, followed by at most three enrichments', async () => {
+  const { dna } = await setup(); const f = providerHttpFixture(); let count = 0;
+  const fallback = f.options.fetch;
+  const p = createCreatorPipelineProvider({ ...f.options, maxHistoryReads: 3, fetch: async (url, init) => {
+    if (new URL(url).hostname === 'api.lightreel.ai') {
+      count++;
+      return count === 1 ? Response.json({ conversationId: 'known-chat' }) :
+        Response.json({ conversationId: 'known-chat', messages: [{ role: 'assistant', answer: { urls: [] } }] });
+    }
+    return fallback(url, init);
+  } });
+  const guard = fakeGuard(); const batch = await p.recommend(dna, guard.context);
+  assert.equal(count, 2); assert.deepEqual(batch.ideas, []);
+  assert.deepEqual(guard.calls.map(c => c.key), ['research', 'poll:0']);
+});
+test('missing research ID and HTTP failures stop after one call and keep raw diagnostics out of errors', async () => {
+  const { dna } = await setup(); const f = providerHttpFixture();
+  for (const response of [Response.json({ answer: { urls: [] } }), new Response('sensitive error', { status: 500 })]) {
+    let calls = 0;
+    const p = createCreatorPipelineProvider({ ...f.options, fetch: async () => { calls++; return response; } });
+    await assert.rejects(p.recommend(dna, fakeGuard().context), /creator_provider_(malformed|transport)/);
+    assert.equal(calls, 1);
+  }
+});
+test('scan bounds and identity checks reject before more paid calls', async () => {
+  const f = providerHttpFixture(); const p = createCreatorPipelineProvider(f.options);
+  await assert.rejects(p.scan({ ...f.input.request, max_videos: 11 }, fakeGuard().context), /exceeds/);
+  assert.equal(f.http.length, 0);
+  await assert.rejects(p.scan({ ...f.input.request, supplied_url: 'https://www.tiktok.com/@different' }, fakeGuard().context), /unavailable/);
+  assert.equal(f.http.length, 1);
+});
+test('selected scripts use captured corrected DNA; stale version and uncited source IDs fail', async () => {
+  const { f, provider, dna } = await setup();
+  dna.version = 2;
+  dna.claims[0] = { ...dna.claims[0]!, basis: 'user_corrected', supersedes_claim_id: dna.claims[0]!.id,
+    id: crypto.randomUUID(), statement: 'My topic is practical desk organization.' };
+  const batch = await provider.recommend(dna, fakeGuard().context);
+  const before = f.http.length;
+  await assert.rejects(provider.generate({ batch, idea_id: batch.ideas[0]!.id, dna: { ...dna, version: 3 } }, fakeGuard().context), /lineage/);
+  assert.equal(f.http.length, before);
+  const wrong = createCreatorPipelineProvider({ ...f.options, fetch: async () => Response.json({ id: 'resp-bad', status: 'completed',
+    output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify({ variants: creatorScriptsFixture().variants.map(({id: _id, ...v}) => ({ ...v, reference_ids: [crypto.randomUUID()] })) }) }] }] }) });
+  await assert.rejects(wrong.generate({ batch, idea_id: batch.ideas[0]!.id, dna }, fakeGuard().context), /malformed/);
+  const researchBody = JSON.parse(f.http.find(h => new URL(h.url).hostname === 'api.lightreel.ai')!.init.body as string);
+  assert.match(researchBody.question, /practical desk organization/);
+});
+
+test('enrichment never exceeds three distinct videos even when discovery supplies duplicates and extra URLs', async () => {
+  const { dna } = await setup(); const f = providerHttpFixture(); const fallback = f.options.fetch;
+  const seen: string[] = [];
+  const p = createCreatorPipelineProvider({ ...f.options, fetch: async (url, init) => {
+    const u = new URL(url);
+    if (u.hostname === 'api.lightreel.ai') return Response.json({ conversationId: 'bounded', answer: {
+      urls: [1, 1, 2, 3, 4, 5].map(id => `https://www.tiktok.com/@fictional_kettle_creator/video/${id}`) } });
+    if (u.pathname === '/v2/tiktok/video') {
+      const requested = u.searchParams.get('url')!; seen.push(requested);
+      const response = await fallback(url, init); const body = await response.json() as any;
+      body.aweme_detail.aweme_id = requested.split('/').at(-1);
+      return Response.json(body);
+    }
+    return fallback(url, init);
+  } });
+  const guard = fakeGuard(); const batch = await p.recommend(dna, guard.context);
+  assert.equal(seen.length, 3); assert.equal(new Set(seen).size, 3);
+  assert.equal(batch.references.length, 3); assert.equal(batch.ideas.length, 3);
+  assert.equal(guard.calls.length, 4);
+});
+test('cursor chains stop on unknown or repeated cursors, retaining coverage and conflicting observations', async () => {
+  for (const hasMore of [undefined, true]) {
+    const f = providerHttpFixture(); const fallback = f.options.fetch; let pages = 0;
+    const p = createCreatorPipelineProvider({ ...f.options, fetch: async (url, init) => {
+      const response = await fallback(url, init);
+      if (new URL(url).pathname !== '/v3/tiktok/profile/videos') return response;
+      pages++; const body = await response.json() as any;
+      body.has_more = hasMore; body.max_cursor = '42';
+      body.cached = true; body.cached_at = pages === 1 ? '2026-10-08T00:00:00Z' : '2026-10-09T00:00:00Z';
+      body.aweme_list[0].statistics.play_count = pages === 1 ? null : 99;
+      return Response.json(body);
+    } });
+    const analysis = await p.scan(f.input.request, fakeGuard().context);
+    assert.equal(pages, hasMore ? 2 : 1);
+    assert.equal(analysis.scan.coverage.unique_videos, 1);
+    assert.equal(analysis.scan.video_observations.length, pages);
+    assert.equal(analysis.scan.video_observations[0]!.metrics.views, null);
+    assert.equal(analysis.scan.video_observations[0]!.provenance.source_observed_at, '2026-10-08T00:00:00.000Z');
+  }
+});
+test('source rights predicate must approve the exact captured snapshot and version before research', async () => {
+  const { dna } = await setup(); const f = providerHttpFixture();
+  const p = createCreatorPipelineProvider({ ...f.options,
+    canProcessDna: view => view.dna_id === dna.dna_id && view.snapshot_id === dna.snapshot_id && view.version === dna.version });
+  await assert.rejects(p.recommend({ ...dna, version: dna.version + 1 }, fakeGuard().context), /permission/);
+  await assert.rejects(p.recommend({ ...dna, snapshot_id: crypto.randomUUID() }, fakeGuard().context), /permission/);
+  assert.equal(f.http.length, 0);
+});
