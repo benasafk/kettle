@@ -1,3 +1,4 @@
+import { topicalMatchingText } from '../creator-scan/topical-context.ts';
 import { z } from 'zod';
 import { CreatorDnaView } from '../../contracts/creator-operations.ts';
 import { CreatorAnalysis, ProfileScanRequest, ObservationProvenance } from '../../contracts/creator-profile.ts';
@@ -197,7 +198,7 @@ function buildRecommendations(dna: CreatorDnaView, references: RecommendationBat
   for (const ref of references) {
     if (!ref.caption) continue;
     const tokens = words(ref.caption);
-    const claim = topical.find(c => [...words(c.statement)].some(w => tokens.has(w)));
+    const claim = topical.find(c => [...words(topicalMatchingText(c))].some(w => tokens.has(w)));
     if (!claim) continue;
     ideas.push({ id: context.newId(), title: `Test a creator-specific variation ${ideas.length + 1}`,
       concept: `Create an original video exploring your stated topic: ${claim.statement}`,
