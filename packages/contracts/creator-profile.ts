@@ -136,11 +136,23 @@ export const CreatorDnaSnapshot = z.strictObject({
   source_scan_id: Id, analyzer_version: text(100), taxonomy_version: text(100),
   claims: z.array(DnaClaim).max(100), limitations: z.array(text(1000)).max(30),
 }).refine(d => new Set(d.claims.map(c => c.id)).size === d.claims.length, 'Claim IDs must be unique');
+/** Provider-authored review of the supplied video, not verified profile-wide DNA. */
+export const LightreelSeedReview = z.strictObject({
+  url: CreatorUrl.refine(v => /^\/@[\w.]+\/video\/\d{1,30}$/.test(new URL(v).pathname)),
+  provider: z.literal('lightreel'), conversation_id: text(200),
+  summary: text(8000),
+  access_basis: z.enum(['video_access_reported','transcript_or_caption_only','unavailable','unknown']),
+  limitations: z.array(text(1000)).max(20), provenance: ObservationProvenance,
+}).refine(r => r.provenance.provider === 'lightreel' && r.provenance.source_url === r.url,
+  'Seed review must retain its Lightreel source attribution');
 /** Validate this envelope at the adapter/application boundary, not snapshot alone. */
-export const CreatorAnalysis = z.strictObject({ scan: ProfileScanResult, dna: CreatorDnaSnapshot })
-  .superRefine(({ scan, dna }, ctx) => {
+export const CreatorAnalysis = z.strictObject({ scan: ProfileScanResult, dna: CreatorDnaSnapshot, seed_review: LightreelSeedReview.optional() })
+  .superRefine(({ scan, dna, seed_review }, ctx) => {
     const issue = (message: string) => ctx.addIssue({ code: 'custom', message });
     if (!scan.profile || !same(scan.profile, dna.profile) || dna.source_scan_id !== scan.id) issue('DNA scan/profile lineage mismatch');
+    if (seed_review && (!seed_review.url.startsWith(scan.request.supplied_url.replace(/\/$/,'')+'/video/') ||
+      seed_review.provenance.permission.status === 'needs_review' ||
+      !seed_review.provenance.permission.permitted_uses.includes('model_processing'))) issue('Seed review profile or permission mismatch');
     const observations = new Map([...scan.profile_observations, ...scan.video_observations].map(o => [o.id, o]));
     for (const c of dna.claims) for (const e of c.evidence) {
       const o = observations.get(e.observation_id);

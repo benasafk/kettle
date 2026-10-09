@@ -59,7 +59,7 @@
       "vars": {
         "CREATOR_PIPELINE_ENABLED": "true",
         "CREATOR_MODEL": "gpt-4.1-mini",
-        "CREATOR_SOURCE_PERMISSION_BASIS": "User-authorized bounded trial review of public TikTok metadata and relevant public references; no media download or visual analysis.",
+        "CREATOR_SOURCE_PERMISSION_BASIS": "User-authorized bounded trial: Lightreel reviews the supplied public TikTok video; ScrapeCreators supplies public metadata and references. Kettle does not download media. Provider-reported media access is not independently verified.",
         "CREATOR_SCRAPE_CEILING_MICROUSD": "0",
         "CREATOR_LIGHTREEL_CEILING_MICROUSD": "0",
         "CREATOR_OPENAI_CEILING_MICROUSD": "0"

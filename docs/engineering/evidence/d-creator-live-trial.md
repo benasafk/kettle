@@ -42,7 +42,9 @@ bounded polling, revision/ID checks, auth clearing, teardown and restrictive CSP
   account and the existing development Supabase project.
 - Creator: `https://www.tiktok.com/@smartykalz`.
 - Supplied seed: `https://www.tiktok.com/@smartykalz/video/7685478377012071694`.
-  Retained as input; not separately fetched or assumed to occur in the recent feed.
+  Lightreel reviews this exact video before supporting ScrapeCreators metadata is
+  requested. The review is saved separately from profile-wide DNA with provider-
+  reported access basis, date and limitations; it is not assumed to occur in the feed.
 - Scan: at most ten distinct videos/two pages plus one profile request.
 - Reference discovery: one blocking Lightreel POST, no history reads by default,
   at most three distinct ScrapeCreators metadata enrichments; no media/transcripts.
@@ -78,6 +80,28 @@ configured development pipeline and active source allowance, although it consume
 no provider units. Source retention must cover full sanitized feed receipts as well
 as admitted public observations; production retention/deletion policy remains open.
 This development trial is not production release or submission readiness.
+
+## User correction: Lightreel must review the supplied video
+
+The user explicitly directed Lightreel API review of the link. A supplied seed now
+causes one guarded blocking `/v1/chat` review first, with a nine-minute timeout and
+no automatic resubmission/history polling. Four bounded fields record the exact
+video URL, review, reported access basis and limitations. A separate optional review
+in the saved analysis/view preserves display and processing permissions and survives
+DNA corrections. It does not mint video observations or profile-wide DNA claims.
+The additive `20261009173000_creator_seed_review.sql` stores that review in a
+service-only immutable table and joins it into current/historical reads. Existing
+scan, DNA version and write-receipt rows are not rewritten.
+The card labels Lightreel's access as provider-reported, not independent verification.
+Reference discovery uses the saved review as context. ChatGPT still drafts variants.
+
+The first pre-correction hosted scan obtained a profile receipt, then its feed request
+failed within three seconds and stopped at `needs_reconciliation`. Two ScrapeCreators
+units remain reserved; there was no Lightreel request or cash reservation. That history
+is retained. Safe enum-only diagnostics now retain future failure class/status without
+provider bodies or credentials. The SC feed raw response cap increases from 256KiB
+to 2MiB, while persisted allowlisted receipts remain capped at 256KiB; oversized feed
+response is a hypothesis, not a verified explanation of the earlier failure.
 
 ## Hosted integration and transport regression
 

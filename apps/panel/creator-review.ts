@@ -1,3 +1,4 @@
+import { seedVideoReview } from './seed-video-review.ts';
 import { mountCreatorReview } from './creator-loop/index.ts';
 import { createCreatorReviewController } from './creator-review-controller.ts';
 
@@ -19,15 +20,23 @@ export function mountSavedCreatorReview(
   timeoutMs = 10_000,
 ) {
   const view = mountCreatorReview(root);
+  let seed: HTMLElement | undefined;
+  const clearSeed = () => { seed?.remove(); seed = undefined; };
   const controller = createCreatorReviewController({
-    loading: () => view.render({ kind: 'loading' }),
+    loading: () => { clearSeed(); view.render({ kind: 'loading' }); },
     saved(dna, read) {
+      const seedFocused = !!seed?.contains(root.ownerDocument.activeElement);
+      clearSeed();
       // The current component cannot display stale-data warnings. Use its existing
       // recovery state instead of silently showing stale content or inventing UI.
       if (read.warning) view.render({ kind: 'error', message: read.warning });
-      else view.render({ kind: 'saved', dna, preview: false });
+      else {
+        view.render({ kind: 'saved', dna, preview: false });
+        if (dna.seed_review) { seed = seedVideoReview(root.ownerDocument, dna.seed_review); root.append(seed); }
+      }
+      if (seedFocused) (seed?.querySelector<HTMLElement>('a') ?? root.querySelector<HTMLElement>('h2'))?.focus({ preventScroll: true });
     },
-    unavailable: reason => view.render({ kind: 'error', message: messages[reason] }),
+    unavailable: reason => { clearSeed(); view.render({ kind: 'error', message: messages[reason] }); },
   }, readDna, timeoutMs);
   return {
     connected: controller.connected,
@@ -35,6 +44,6 @@ export function mountSavedCreatorReview(
     receiveResult: controller.receiveResult,
     refresh: controller.refresh,
     connectionFailed: controller.connectionFailed,
-    dispose() { controller.dispose(); view.dispose(); },
+    dispose() { controller.dispose(); clearSeed(); view.dispose(); },
   };
 }

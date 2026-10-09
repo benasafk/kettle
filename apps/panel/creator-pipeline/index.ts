@@ -1,3 +1,4 @@
+import { seedVideoReview } from '../seed-video-review.ts';
 import type { CreatorJobView, PipelineReference } from '../../../packages/contracts/creator-pipeline.ts';
 import { mountCreatorReview } from '../creator-loop/index.ts';
 import { creatorReviewStyles } from '../creator-loop/styles.ts';
@@ -123,6 +124,7 @@ export function mountCreatorPipeline(root: HTMLElement): {
       content.append(el('p', 'The outcome is uncertain. Ask Kettle in chat to reconcile this job before retrying or starting paid work. This view does not retry it.', 'kc-notice'));
       outcome += ' Ask Kettle in chat to reconcile this job before retrying.';
     } else if (job.result?.kind === 'scan') {
+      if (job.result.dna.seed_review) content.append(seedVideoReview(doc, job.result.dna.seed_review));
       const host = el('div'); content.append(host);
       dnaView = mountCreatorReview(host);
       dnaView.render({kind: 'saved', dna: job.result.dna, preview: false});

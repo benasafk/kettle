@@ -32,6 +32,10 @@ const ops = createCreatorOperations(verifier, repository);
 const ingest = createCreatorIngestion(repository);
 async function seedAnalysis() {
   const analysis = creatorAnalysisFixture(); analysis.dna.id = crypto.randomUUID(); analysis.dna.claims[0]!.id = crypto.randomUUID();
+  const url=analysis.scan.request.supplied_url+'/video/12345';
+  analysis.seed_review={url,provider:'lightreel',conversation_id:'fixture-review',summary:'Fictional provider review for persistence checks.',
+    access_basis:'unknown',limitations:['Fictional fixture; no actual access.'],
+    provenance:{...structuredClone(analysis.scan.profile_observations[0]!.provenance),provider:'lightreel',endpoint:'/v1/chat',source_url:url,modalities:['metadata']}};
   const input = { project_id: projectId, request_id: crypto.randomUUID(), analysis };
   const stored = StoredCreatorOutput.parse(await ingest(accountA,input));
   assert.ok(stored.ok); return { input, stored: stored.data, id: stored.data.dna_id };
@@ -44,10 +48,12 @@ test('trusted ingestion, immutable reads, correction, historical reopen and exac
   const before = await counts();
   assert.ok((await ingest(accountA,input)).ok); assert.deepEqual(await counts(),before);
   const initial = GetCreatorDnaOutput.parse(await ops.execute('get_creator_dna','a',{dna_id:id})); assert.ok(initial.ok);
+  assert.equal(initial.data.dna.seed_review?.summary,'Fictional provider review for persistence checks.');
   const request = { dna_id:id, expected_version:1, request_id:crypto.randomUUID(),
     corrections:[{claim_id:initial.data.dna.claims[0]!.id,statement:'Lighting tutorials are my focus.'}] };
   const saved = CorrectCreatorDnaOutput.parse(await ops.execute('correct_creator_dna','a',request)); assert.ok(saved.ok);
   assert.equal(saved.data.dna.version,2); assert.equal(saved.data.dna.claims[0]!.basis,'user_corrected');
+  assert.deepEqual(saved.data.dna.seed_review,initial.data.dna.seed_review);
   assert.equal(saved.data.dna.claims[0]!.supersedes_claim_id,initial.data.dna.claims[0]!.id);
   assert.deepEqual(saved.data.dna.claims[0]!.evidence,initial.data.dna.claims[0]!.evidence);
   assert.notEqual(saved.data.dna.snapshot_id,initial.data.dna.snapshot_id);
