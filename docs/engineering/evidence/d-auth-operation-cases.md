@@ -1,7 +1,9 @@
-# Profile/DNA authorization cases — awaiting actual operations
+# Profile/DNA authorization cases — original preparation
 
 Nagoya review, 2026-10-09, base `4a31f3c`. Branch
 `gustasbull/npm-setup-and-check-v4` was clean and already synchronized with origin/main.
+**Update:** PR #20 now supplies the stored-DNA operations. See [executed signed-auth evidence](d-creator-auth-results.md) for current coverage and remaining limits. The pending statements below retain the original pre-operation review.
+
 This refines [the D authorization matrix](d-auth-matrix.md) against merged D0
 (PR #17, merge `5a4f1c1`). **All cases below are pending, not executed D acceptance.**
 
