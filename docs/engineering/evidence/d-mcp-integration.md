@@ -6,6 +6,108 @@ Branch inspected: `gustasbull/chatgpt-mcp-v1`; clean before fast-forward from
 `4790956`. No reset, rename, discarded edits or copied workspace credentials.
 The PR head is recorded in the PR handoff rather than a self-referential commit ID.
 
+## Read-only scan/DNA slice after merged D0 — 2026-10-09
+
+Follow-up baseline: `4a31f3c`. Current branch `gustasbull/chatgpt-mcp-v2` was
+already synchronized and clean; no rename/reset/stash was performed. Shared D0
+contracts landed through PR #17 (`3fccb85`, follow-up `4dc22c6`); Shanghai's inventory
+landed through PR #16. The original proposal below remains future planning. This
+section narrows the next executable slice and takes precedence for its scope.
+
+### What is available, and what is not
+
+Import from `packages/contracts/creator-profile.ts`; fictional inputs come from
+`packages/contracts/fixtures/creator-profile.ts`. No copied business schemas.
+
+| Merged definition | Integration implication |
+| --- | --- |
+| `ProfileScanResult` | Result statuses are exactly complete, partial, unavailable, failed. These are not job lifecycle states. It has an ID and creation time but no version/status revision; do not compare timestamps as versions or invent queued/running states. |
+| `CreatorDnaSnapshot` | Positive version is scoped to DNA ID. Validate profile identity as platform + native ID and bind `source_scan_id`; handle/URL does not establish identity or ownership. |
+| `CreatorAnalysis` | Validates scan/profile/DNA/evidence lineage and analysis permissions. Snapshot-only validation is insufficient at the internal analysis boundary. |
+| `CorrectCreatorDnaInput` | Exists as an internal correction contract; does not authorize a public tool, application operation or correction control. Excluded from this read-only slice. |
+| Fixture functions | `creatorAnalysisFixture`, `partialScanFixture`, `unavailableScanFixture` provide internal fictional data; they do not represent authorized public outputs. |
+
+**Still missing:** authenticated application read operations, their input/output
+schemas and adopted scopes, permission-safe output projection, and exact Shanghai
+component exports. `packages/application/operations.ts` still executes only the
+existing `toolContracts`. No creator-loop component directory/export exists on this
+baseline. Therefore no production controller can yet bind the intended interfaces.
+
+`CreatorAnalysis` is explicitly internal: analysis can use evidence without display
+permission, and raw scans carry cost attempts, pagination cursors and provenance.
+A schema-valid internal analysis must not be assumed safe for either UI or model-visible
+text. Bangkok owns projection/redaction and cross-account enforcement; Berlin will
+validate the resulting shared output rather than implement a local allowlist or cast
+internal analysis into a public response. How redacted evidence affects claim lineage
+must be specified in that output contract.
+
+### Controller and test structure ready for interface implementation
+
+Proposed owned files (not created as empty/throwaway placeholders):
+
+- `apps/panel/creator-review-controller.ts`: host-independent read lifecycle using
+  imported operation outputs and Shanghai presentation types. No UI component,
+  business schema, job state machine, transport, mutation callback or polling.
+- `tests/panel/creator-review-controller.test.ts`: deferred-read/fake-time tests,
+  already covered by the existing browser TypeScript project and test discovery.
+- Later dedicated bridge/resource/MCP tests follow only after Bangkok approves
+  wiring and resource build entries. The controller itself must not be imported by
+  the current project-review entry until its own integration is ready.
+
+Controller dependencies will be authenticated read callbacks supplied by the bridge,
+Shanghai's render callback, and a bounded read deadline. Exact TypeScript signatures
+wait for the imported output and component types. Public methods will receive a
+validated selection/result, report host read capability/connection failure, request
+explicit refresh, and dispose. Method spelling is not an agreed export yet.
+
+Behavior/test pairs to implement in that file:
+
+| Test group | Controller rule / observable assertion |
+| --- | --- |
+| Launch and capability | Validate operation envelope before render; launching result causes zero duplicate reads. Missing serverTools preserves already authorized readable content and exposes chat fallback/disabled refresh through Shanghai's availability field. |
+| ID/source lineage | Reject response for another selected scan/DNA ID, profile platform/native ID or source scan. Validate with merged public output schema; raw analysis is never used as a shortcut around permission projection. |
+| DNA ordering | Track high-water version per DNA ID within current view epoch; accept equal/newer, ignore lower. Switching DNA IDs invalidates pending work and resets that entity's comparison context. Conflicting equal-version payload handling needs the immutable snapshot guarantee from Bangkok. |
+| Scan ordering | Correlate reads to selected scan ID and local request epoch. No synthetic scan version or ordering of result statuses. Bangkok must confirm immutable scan results or provide an authoritative ordering mechanism before mutable scan refresh is supported. |
+| Refresh | One explicit read at a time; duplicate clicks cause one call. A 10-second proposed deadline aborts waiting; a transport ignoring abort still cannot publish late output. Refresh/reopen invoke no start, correction, dispatch or provider calls. |
+| Invalidation | New selection/result, auth/connection failure and disposal invalidate in-flight responses. Late success after auth clearing cannot restore content. Page source filtering belongs to subsequent real transport tests, not a fake controller security claim. |
+| Auth/error clearing | UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, invalid envelope and unknown host rejection clear private snapshots. Recognized transient read timeout may retain the last authorized result with warning and explicit retry. Do not infer D error envelopes from v1 until adopted. |
+| Partial/unavailable | Preserve exact scan status, unknown metrics, coverage and limitations. Do not derive DNA from partial data client-side or turn unavailable into an empty successful DNA result. |
+| Text parity | Test the complete permission-safe public result through the eventual MCP text serializer; include IDs/versions needed for reopen, claims/evidence permitted for display and limitations. No separate provider-to-text projection or raw JSON of internal analysis. |
+| Disposal | Cancel deadlines/requests, ignore late results, emit no further render/read. Component and host teardown remain their respective owners' responsibility. |
+
+Fixtures for these tests will reuse the merged internal fixture factories through
+Bangkok's fixture/projection seam, or use his public fixture exports when available.
+No locally invented success/error envelope or permissive fake operation is introduced.
+Application integration must separately prove zero writes/dispatch/provider calls on
+reads and account A/B isolation; a controller mock cannot prove those properties.
+
+### Coordination sent and first executable PR gate
+
+Requests sent to [Bangkok on PR #17](https://github.com/gustasbull/kettle/pull/17#issuecomment-6081816063)
+and [Shanghai on PR #16](https://github.com/gustasbull/kettle/pull/16#issuecomment-6081816590).
+These are pending requests, not approvals or received interfaces.
+
+Bangkok: provide operation/export commit, scopes, display projection, scan immutability,
+DNA latest/exact-version semantics, whether DNA ID denotes stable lineage or an
+immutable snapshot, and permitted-evidence lineage. Version comparison across
+corrections must follow that adopted identity rule, not assume unchanged IDs. Shanghai: provide
+exact scan/DNA module/export names, render/dispose types and `onRefresh` signature,
+including action availability and private-content clearing. Read-only components
+need no mutation, start, cancellation or generation callbacks in this increment.
+
+When both seams are available, implement the controller and focused tests in a small
+PR; public registration still waits for merged authenticated operations and safe
+outputs. No dependency/build changes, current project-review edits or deployment
+are needed for this preparation.
+
+Follow-up validation: `npm run build:panel` passed (534861 bytes). Running
+`npx --no-install tsx --test tests/creator-profile-contracts.test.ts tests/project-review-bridge.test.ts tests/project-review-mcp.test.ts`
+passed 35/35 existing tests: ten D0 contract checks and 25 project-review checks.
+`git diff --check` passed. These establish the existing local contract/regression
+baseline, not a new D controller, authenticated D operation, or actual host proof.
+Only this plan changed. The executable PR waits for the two interface commits;
+no placeholder implementation or passing mock of a missing operation is shipped.
+
 ## Operation and metadata proposal
 
 Names below are discussion labels, not registrations. Bangkok owns final names,
