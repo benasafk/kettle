@@ -1,6 +1,6 @@
 # Riff Supabase Auth and OAuth Cutover Design
 
-- Status: implemented locally; constrained hosted preview acceptance pending
+- Status: deployed to hosted development; interactive ChatGPT acceptance pending
 - Date: 11 October 2026
 - Product: Riff
 - Runtime: Cloudflare Workers + Workflows

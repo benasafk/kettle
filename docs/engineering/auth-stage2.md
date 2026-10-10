@@ -1,7 +1,7 @@
 # Riff Stage 2 authentication
 
-Date: 2026-10-11. Status: Supabase implementation complete locally; hosted
-development acceptance is recorded separately from local verification.
+Date: 2026-10-11. Status: deployed to hosted development; interactive ChatGPT
+sign-in, token exchange, and refresh acceptance remain pending.
 
 This is the canonical operator guide for the current Riff authentication stack.
 Auth0 and Cloudflare Access are retired from the application flow. Cloudflare
