@@ -7,6 +7,8 @@ import { createOperations } from '../packages/application/operations.ts';
 import { GetProjectInput, GetProjectOutput, SaveProjectOutput } from '../packages/contracts/index.ts';
 import { handleMcp, type McpAuth } from '../apps/worker/mcp.ts';
 import { PROJECT_REVIEW_URI, PROJECT_REVIEW_MIME, PROJECT_REVIEW_META, projectReviewHtml } from '../apps/worker/project-review-resource.ts';
+import { RIFF_ONBOARDING_MIME, RIFF_ONBOARDING_URI } from '../apps/worker/riff-onboarding-resource.ts';
+import { RIFF_HOME_MIME, RIFF_HOME_URI } from '../apps/worker/riff-home-resource.ts';
 import { config, fixtureAuth } from './auth-fixtures.ts';
 import { createInput } from './fixtures.ts';
 
@@ -96,7 +98,9 @@ test('project-review render tool uses signed identity, exact read contract and r
 
   const resources = await (await rpc('resources/list', {}, auth)).json() as { result: { resources: Record<string, unknown>[] } };
   assert.deepEqual(resources.result.resources.map((r) => [r.name, r.uri, r.mimeType]),
-    [['kettle-project-review', PROJECT_REVIEW_URI, PROJECT_REVIEW_MIME]]);
+    [['riff-onboarding', RIFF_ONBOARDING_URI, RIFF_ONBOARDING_MIME],
+      ['kettle-project-review', PROJECT_REVIEW_URI, PROJECT_REVIEW_MIME],
+      ['riff-home', RIFF_HOME_URI, RIFF_HOME_MIME]]);
   const read = await (await rpc('resources/read', { uri: PROJECT_REVIEW_URI }, auth)).json() as {
     result: { contents: { uri: string; mimeType: string; text: string; _meta: unknown }[] };
   };
@@ -115,9 +119,9 @@ test('project-review render tool uses signed identity, exact read contract and r
   assert.deepEqual(another, read, 'static resource is independent of caller');
 });
 
-test('unconfigured auth stays diagnostic-only and does not expose project-review resource', async () => {
+test('unconfigured auth exposes only public diagnostics/onboarding and not account resources', async () => {
   const listing = await (await rpc('tools/list', {})).json() as { result: { tools: { name: string }[] } };
-  assert.deepEqual(listing.result.tools.map((t) => t.name), ['kettle_diagnostic']);
+  assert.deepEqual(listing.result.tools.map((t) => t.name), ['kettle_diagnostic', 'show_riff_welcome']);
   const call = await (await rpc('tools/call', { name: 'show_project_brief', arguments: { project_id: crypto.randomUUID() } })).json() as { result?: { isError: boolean }; error?: unknown };
   assert.ok(call.error || call.result?.isError);
   const resource = await (await rpc('resources/read', { uri: PROJECT_REVIEW_URI })).json() as { error?: unknown };

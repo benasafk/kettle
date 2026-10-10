@@ -7,6 +7,7 @@ import { createJwtVerifier, scopes } from '../packages/auth/index.ts';
 import { handleWebsiteAuth } from '../packages/auth/website.ts';
 import { createOperations, type ProjectRepository } from '../packages/application/operations.ts';
 import { GetAccountStateOutput, GetProjectOutput, SaveProjectOutput } from '../packages/contracts/index.ts';
+import { OpenAIProfile } from '../packages/contracts/openai-profile.ts';
 import { handleMcp } from '../apps/worker/mcp.ts';
 import { config, metadata } from './auth-fixtures.ts';
 import { createInput } from './fixtures.ts';
@@ -71,6 +72,8 @@ test('signed website and separate MCP credentials share SQL ownership across rec
   const mcpAccount = GetAccountStateOutput.parse((await content(await mcp(mcpToken, 'get_account_state', {}))).structuredContent);
   assert.ok(mcpAccount.ok);
   assert.equal(mcpAccount.data.account.id, websiteAccount.data.account.id);
+  const profile = OpenAIProfile.parse((await content(await mcp(mcpToken, 'get_riff_profile', {}))).structuredContent);
+  assert.deepEqual(profile, { id: websiteAccount.data.account.id, name: websiteAccount.data.account.display_name });
   const input = createInput();
   const saved = SaveProjectOutput.parse((await content(await mcp(mcpToken, 'save_project', input))).structuredContent);
   assert.ok(saved.ok);
@@ -81,6 +84,7 @@ test('signed website and separate MCP credentials share SQL ownership across rec
   assert.ok(updated.ok);
   assert.equal(updated.data.project.current_version, 2);
   const reconnected = await token('fictional-a', 'separate-chatgpt-client', { iat: issued + 1 });
+  assert.equal(OpenAIProfile.parse((await content(await mcp(reconnected, 'get_riff_profile', {}))).structuredContent).id, profile.id);
   const reopened = GetProjectOutput.parse((await content(await mcp(reconnected, 'get_project', { project_id: projectId }))).structuredContent);
   assert.ok(reopened.ok);
   assert.deepEqual(reopened.data.project, updated.data.project);
@@ -92,6 +96,7 @@ test('signed website and separate MCP credentials share SQL ownership across rec
   const otherAccount = GetAccountStateOutput.parse((await content(await mcp(otherToken, 'get_account_state', {}))).structuredContent);
   assert.ok(otherAccount.ok);
   assert.notEqual(otherAccount.data.account.id, websiteAccount.data.account.id);
+  assert.notEqual(OpenAIProfile.parse((await content(await mcp(otherToken, 'get_riff_profile', {}))).structuredContent).id, profile.id);
   const deniedRead = GetProjectOutput.parse((await content(await mcp(otherToken, 'get_project', { project_id: projectId }))).structuredContent);
   const absentRead = GetProjectOutput.parse((await content(await mcp(otherToken, 'get_project', { project_id: crypto.randomUUID() }))).structuredContent);
   assert.ok(!deniedRead.ok && deniedRead.error.code === 'NOT_FOUND');

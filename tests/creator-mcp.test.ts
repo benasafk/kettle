@@ -76,7 +76,7 @@ test('Creator MCP reads, render and corrections use signed identity, real SQL an
   assert.match(resource.result.contents[0]!.text,/ui\/initialize/);
   assert.ok(!resource.result.contents[0]!.text.includes(stored.data.dna_id));
   const unavailable = await (await rpc('tools/list',{},undefined,false)).json() as {result:{tools:{name:string}[]}};
-  assert.deepEqual(unavailable.result.tools.map(t=>t.name),['kettle_diagnostic']);
+  assert.deepEqual(unavailable.result.tools.map(t=>t.name),['kettle_diagnostic','show_riff_welcome']);
   identity.block();
   assert.equal((await rpc('tools/call',{name:'correct_creator_dna',arguments:correction},token)).status,401);
 });

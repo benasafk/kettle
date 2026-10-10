@@ -9,8 +9,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
 import { CONTRACT_VERSION, toolContracts } from '../../packages/contracts/index.ts';
+import { OpenAIProfile } from '../../packages/contracts/openai-profile.ts';
+import type { OpenAIUiToolMetadata } from '@openai/mcp-extensions/server';
 
 import { registerProjectReviewResource, PROJECT_REVIEW_URI } from './project-review-resource.ts';
+import { registerRiffOnboardingResource, RIFF_ONBOARDING_URI } from './riff-onboarding-resource.ts';
+import { registerRiffHomeResource, RIFF_HOME_URI } from './riff-home-resource.ts';
 
 import type { createOperations, IdentityVerifier } from '../../packages/application/operations.ts';
 import { bearer, challenge, type AuthConfig } from '../../packages/auth/index.ts';
@@ -39,6 +43,20 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
   }, async () => ({
     content: [{ type: 'text', text: auth ? 'Kettle is reachable. Account tools require authorization.' : 'Kettle foundation is reachable. Account tools are not enabled yet.' }],
     structuredContent: { status: 'ok', contract_version: CONTRACT_VERSION },
+  }));
+  const welcomeOutput = z.strictObject({ steps: z.tuple([z.literal('Start'), z.literal('Find'), z.literal('Make')]) });
+  const welcomeSecurity = [{ type: 'noauth' as const }];
+  const welcomeMeta = { securitySchemes: welcomeSecurity, ui: { resourceUri: RIFF_ONBOARDING_URI } };
+  registerRiffOnboardingResource(server);
+  server.registerTool('show_riff_welcome', {
+    title: 'Welcome to Riff',
+    description: 'Show the first-run Riff guide: start with creator context, find an idea, and make it yours. No account data or writes.',
+    inputSchema: z.strictObject({}), outputSchema: welcomeOutput,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: welcomeMeta,
+  }, async () => ({
+    content: [{ type: 'text', text: 'Riff works in three steps: Start with what you have, Find your breakout idea, then Make it yours.' }],
+    structuredContent: { steps: ['Start', 'Find', 'Make'] as ['Start', 'Find', 'Make'] },
   }));
   // One definition drives both registration and the overridden tools/list.
   // The render tool is a transport alias, never a new application operation.
@@ -95,6 +113,16 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
       annotations:{readOnlyHint:contract.readOnly,destructiveHint:false,idempotentHint:true,openWorldHint:!contract.readOnly&&tool.operation!=='save_creator_scripts'},
       _meta:{securitySchemes,...(tool.ui?{ui:tool.ui}:{})}};
   });
+  const accountContract = toolContracts.get_account_state;
+  const riffSecurity = [{ type: 'oauth2' as const, scopes: [accountContract.scope] }];
+  const openaiHomeUi = {
+    preferredModelDisplayMode: 'fullscreen',
+    entrypoints: [{ type: 'global' }, { type: 'thread' }],
+  } satisfies OpenAIUiToolMetadata;
+  const profileMeta = { securitySchemes: riffSecurity, 'openai/profile': true };
+  const homeMeta = {
+    securitySchemes: riffSecurity, ui: { resourceUri: RIFF_HOME_URI }, 'openai/ui': openaiHomeUi,
+  };
   if(auth?.pipelineOperations){
     registerCreatorPipelineResource(server);
     for(const tool of pipelineTools){
@@ -130,6 +158,7 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
   }
   if (auth) {
     registerProjectReviewResource(server);
+    registerRiffHomeResource(server);
     for (const tool of productTools) {
       const { contract } = tool;
       server.registerTool(tool.name, {
@@ -153,6 +182,41 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
         };
       });
     }
+    server.registerTool('get_riff_profile', {
+      title: 'Riff profile',
+      description: 'Return the signed-in Riff account identity for ChatGPT account recognition. Returns only an opaque ID and display name.',
+      inputSchema: z.strictObject({}), outputSchema: OpenAIProfile,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: profileMeta,
+    }, async () => {
+      const result = await auth.operations.execute('get_account_state', token, {});
+      const needsAuth = !result.ok && (result.error.code === 'UNAUTHENTICATED'
+        || (result.error.code === 'FORBIDDEN' && token && !(await auth.verifier.verify(token))?.scopes.includes(accountContract.scope)));
+      if (!result.ok) return {
+        content: [{ type: 'text' as const, text: result.error.message }], structuredContent: result, isError: true,
+        ...(needsAuth ? { _meta: { 'mcp/www_authenticate': [challenge(auth.config,
+          result.error.code === 'FORBIDDEN' ? 'insufficient_scope' : 'invalid_token', accountContract.scope)] } } : {}),
+      };
+      const profile = OpenAIProfile.parse({ id: result.data.account.id, name: result.data.account.display_name });
+      return { content: [{ type: 'text' as const, text: JSON.stringify(profile) }], structuredContent: profile };
+    });
+    server.registerTool('open_riff', {
+      title: 'Riff Home',
+      description: 'Open Riff Home for creator input, idea discovery, and continuing into video creation. Reads account state only.',
+      inputSchema: accountContract.input, outputSchema: accountContract.output.options[0],
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: homeMeta,
+    }, async () => {
+      const result = await auth.operations.execute('get_account_state', token, {});
+      const needsAuth = !result.ok && (result.error.code === 'UNAUTHENTICATED'
+        || (result.error.code === 'FORBIDDEN' && token && !(await auth.verifier.verify(token))?.scopes.includes(accountContract.scope)));
+      return {
+        content: [{ type: 'text' as const, text: result.ok ? JSON.stringify(result.data) : result.error.message }],
+        structuredContent: result, isError: !result.ok,
+        ...(needsAuth ? { _meta: { 'mcp/www_authenticate': [challenge(auth.config,
+          result.error.code === 'FORBIDDEN' ? 'insufficient_scope' : 'invalid_token', accountContract.scope)] } } : {}),
+      };
+    });
   }
   // SDK 1.32's high-level registration only serializes _meta. Publish the
   // standard top-level securitySchemes as well, using its public list handler API.
@@ -164,7 +228,15 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     securitySchemes: [{ type: 'noauth' }], _meta: { securitySchemes: [{ type: 'noauth' }] },
   };
-  const descriptors: AuthTool[] = [diagnostic];
+  const welcomeDescriptor: AuthTool = {
+    name: 'show_riff_welcome', title: 'Welcome to Riff',
+    description: 'Show the first-run Riff guide: start with creator context, find an idea, and make it yours. No account data or writes.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(welcomeOutput), type: 'object' }),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    securitySchemes: welcomeSecurity, _meta: welcomeMeta,
+  };
+  const descriptors: AuthTool[] = [diagnostic, welcomeDescriptor];
   if (auth) for (const tool of productTools) {
     descriptors.push({ name: tool.name, description: tool.description,
       inputSchema: ToolSchema.shape.inputSchema.parse({ ...z.toJSONSchema(tool.contract.input), type: 'object' }),
@@ -184,6 +256,23 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
       inputSchema:ToolSchema.shape.inputSchema.parse({...z.toJSONSchema(tool.contract.input),type:'object'}),
       outputSchema:ToolSchema.shape.outputSchema.parse({...z.toJSONSchema(tool.contract.output),type:'object'}),
       annotations:tool.annotations,securitySchemes:tool.securitySchemes,_meta:tool._meta});
+  }
+  if (auth) {
+    descriptors.push({
+      name: 'get_riff_profile', title: 'Riff profile',
+      description: 'Return the signed-in Riff account identity for ChatGPT account recognition. Returns only an opaque ID and display name.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(OpenAIProfile), type: 'object' }),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      securitySchemes: riffSecurity, _meta: profileMeta,
+    }, {
+      name: 'open_riff', title: 'Riff Home',
+      description: 'Open Riff Home for creator input, idea discovery, and continuing into video creation. Reads account state only.',
+      inputSchema: ToolSchema.shape.inputSchema.parse({ ...z.toJSONSchema(accountContract.input), type: 'object' }),
+      outputSchema: ToolSchema.shape.outputSchema.parse({ ...z.toJSONSchema(accountContract.output), type: 'object' }),
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      securitySchemes: riffSecurity, _meta: homeMeta,
+    });
   }
   server.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: descriptors }));
   // A new stateless transport per request works across Worker isolates. Product
