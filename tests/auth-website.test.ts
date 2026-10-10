@@ -138,6 +138,8 @@ test('website account and JSON API use the verified account; ownership injection
   const account = await f.call('/account', { headers: { cookie: cookies } });
   assert.equal(account.status, 200);
   const html = await account.text();
+  assert.match(html, /<title>Riff account<\/title>/);
+  assert.match(html, /<h1>Riff account<\/h1>/);
   assert.match(html, new RegExp(accountA));
   assert.ok(html.includes(config.resource));
   const headers = { cookie: cookies, Origin: 'https://kettle.example', 'Content-Type': 'application/json' };

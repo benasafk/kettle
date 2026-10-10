@@ -35,13 +35,13 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
   }
   const server = new McpServer({ name: 'kettle-foundation', version: '0.1.0' });
   server.registerTool('kettle_diagnostic', {
-    description: 'Check Kettle connectivity. Returns no account data and performs no writes.',
+    description: 'Check Riff connectivity. Returns no account data and performs no writes.',
     inputSchema: z.strictObject({}),
     outputSchema: z.object({ status: z.literal('ok'), contract_version: z.literal(CONTRACT_VERSION) }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { securitySchemes: [{ type: 'noauth' }] },
   }, async () => ({
-    content: [{ type: 'text', text: auth ? 'Kettle is reachable. Account tools require authorization.' : 'Kettle foundation is reachable. Account tools are not enabled yet.' }],
+    content: [{ type: 'text', text: auth ? 'Riff is reachable. Account tools require authorization.' : 'Riff foundation is reachable. Account tools are not enabled yet.' }],
     structuredContent: { status: 'ok', contract_version: CONTRACT_VERSION },
   }));
   const welcomeOutput = z.strictObject({ steps: z.tuple([z.literal('Start'), z.literal('Find'), z.literal('Make')]) });
@@ -63,13 +63,13 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
   const productTools = [
     ...Object.keys(toolContracts).map((name) => ({
       name, operation: name as keyof typeof toolContracts,
-      description: name === 'save_project' ? 'Save a complete project brief in your Kettle account with version and request-ID checks.'
-        : name === 'get_project' ? 'Reopen a saved project in your Kettle account.' : 'Read your Kettle account status.',
+      description: name === 'save_project' ? 'Save a complete project brief in your Riff account with version and request-ID checks.'
+        : name === 'get_project' ? 'Reopen a saved project in your Riff account.' : 'Read your Riff account status.',
       ui: undefined as { resourceUri: string } | undefined,
     })),
     {
       name: 'show_project_brief', operation: 'get_project' as const,
-      description: 'Show the saved brief for an existing Kettle project as an inline review card. Use its explicit project ID. After saving corrections, call this tool to show the saved version. This tool does not generate content or save changes.',
+      description: 'Show the saved brief for an existing Riff project as an inline review card. Use its explicit project ID. After saving corrections, call this tool to show the saved version. This tool does not generate content or save changes.',
       ui: { resourceUri: PROJECT_REVIEW_URI },
     },
   ].map((tool) => {
@@ -96,10 +96,10 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
     };
   });
   const pipelineDescriptions = {
-    start_creator_scan: 'Start a user-requested bounded TikTok review in an existing Kettle project. Use a canonical profile URL, maximum ten videos/two pages, and pass the supplied video URL in seed_url. When seed_url is present, Lightreel reviews that exact video first; ScrapeCreators then supplies bounded profile/video metadata. Saved DNA includes the separate Lightreel review and its reported access limitations. Requires an allocated research allowance; can consume provider trial credits. Use a fresh request ID for a new intent and the identical ID/input only for an exact retry. Returns a durable job; read its status without restarting it.',
+    start_creator_scan: 'Start a user-requested bounded TikTok review in an existing Riff project. Use a canonical profile URL, maximum ten videos/two pages, and pass the supplied video URL in seed_url. When seed_url is present, Lightreel reviews that exact video first; ScrapeCreators then supplies bounded profile/video metadata. Saved DNA includes the separate Lightreel review and its reported access limitations. Requires an allocated research allowance; can consume provider trial credits. Use a fresh request ID for a new intent and the identical ID/input only for an exact retry. Returns a durable job; read its status without restarting it.',
     start_creator_recommendations: 'Start user-requested reference research and personalized ideas from saved Creator DNA. Read and confirm the current DNA version first; pass expected_version. Can consume provider credits and requires a research allowance. Returns a durable job with zero to three evidence-backed ideas; fewer or no matches must be reported honestly.',
     start_creator_scripts: 'Backend API generation is disabled for the current trial. Use save_creator_scripts with variants drafted in this conversation. When enabled: generate two or three filming-script variants for the user-selected idea from an existing recommendation batch. Use its exact batch_id and idea_id; binds the original DNA version. Can consume model credits and requires a research allowance. Saves the result as a durable job. Never generate merely to refresh or reopen a card.',
-    save_creator_scripts: 'Save two or three filming variants drafted in this ChatGPT conversation for a user-selected Kettle idea. First read the successful recommendation job and its captured DNA. Draft original hook, opening visual, script, shots, B-roll, on-screen text, showcase timing, CTA, estimated duration and pacing; use only the selected idea reference IDs. Labels: Reference-led, Creator Fit, Experimental (two or three distinct labels). Pass batch_id, idea_id, variants and a new request_id; exact retries reuse that ID. Kettle validates lineage and saves a durable script job without calling an external model or spending credits. Call render_creator_job with returned job_id to reopen.',
+    save_creator_scripts: 'Save two or three filming variants drafted in this ChatGPT conversation for a user-selected Riff idea. First read the successful recommendation job and its captured DNA. Draft original hook, opening visual, script, shots, B-roll, on-screen text, showcase timing, CTA, estimated duration and pacing; use only the selected idea reference IDs. Labels: Reference-led, Creator Fit, Experimental (two or three distinct labels). Pass batch_id, idea_id, variants and a new request_id; exact retries reuse that ID. Riff validates lineage and saves a durable script job without calling an external model or spending credits. Call render_creator_job with returned job_id to reopen.',
     get_creator_job: 'Read an existing creator scan, recommendation or script job by job_id, including its saved result. Does not call providers, spend credits, start or retry work. Preserve job_id to reopen in a later conversation.',
   };
   const pipelineTools = [
@@ -222,7 +222,7 @@ export async function handleMcp(request: Request, auth?: McpAuth): Promise<Respo
   // standard top-level securitySchemes as well, using its public list handler API.
   type AuthTool = Tool & { securitySchemes: ({ type: string; scopes?: string[] })[] };
   const diagnostic: AuthTool = {
-    name: 'kettle_diagnostic', description: 'Check Kettle connectivity. Returns no account data and performs no writes.',
+    name: 'kettle_diagnostic', description: 'Check Riff connectivity. Returns no account data and performs no writes.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     outputSchema: { type: 'object', properties: { status: { const: 'ok' }, contract_version: { const: CONTRACT_VERSION } }, required: ['status', 'contract_version'] },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },

@@ -132,7 +132,7 @@ export async function handleWebsiteAuth(request: Request, config: AuthConfig, me
       if (!result.ok) return json(result, result.error.code === 'UNAUTHENTICATED' ? 401 : 403);
       headers.set('Content-Type', 'text/html; charset=utf-8');
       headers.set('Content-Security-Policy', "default-src 'none'; form-action 'self'; frame-ancestors 'none'");
-      return new Response(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Kettle account</title><main><h1>Kettle account</h1>
+      return new Response(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Riff account</title><main><h1>Riff account</h1>
 <p>Account ID: ${result.data.account.id}</p><p>State: ${result.data.account.state}</p>
 <p>Website sign-in is complete. Connecting ChatGPT is a separate authorization step.</p>
 <p>In ChatGPT Plugins, choose Add custom MCP server and enter <code>${escapeHtml(config.resource)}</code> with OAuth or no authentication (mixed mode). Availability depends on workspace permissions. Use the exact callback shown there when configuring the development connection. There is no public listing yet.</p>
@@ -150,6 +150,6 @@ export async function handleWebsiteAuth(request: Request, config: AuthConfig, me
     return json({ error: 'Not found' }, 404);
   } catch {
     if (url.pathname === '/auth/refresh') headers.append('Set-Cookie', cookie(SESSION, '', 0));
-    return json({ error: 'Sign-in could not be completed. Reconnect your Kettle account.' }, 401);
+    return json({ error: 'Sign-in could not be completed. Reconnect your Riff account.' }, 401);
   }
 }

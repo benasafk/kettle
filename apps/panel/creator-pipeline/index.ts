@@ -1,5 +1,6 @@
 import type { CreatorJobView, PipelineReference } from '../../../packages/contracts/creator-pipeline.ts';
 import type { CreatorDnaView } from '../../../packages/contracts/creator-operations.ts';
+import { seedVideoAccessMessage } from '../seed-video-review.ts';
 import { riffLockup } from '../riff-ui/brand.ts';
 import { formatRiffDate, safeHttpUrl, type RiffActionResult, type RiffPanelAction } from '../riff-ui/dom.ts';
 import { riffBaseStyles } from '../riff-ui/styles.ts';
@@ -160,11 +161,15 @@ export function mountCreatorPipeline(root: HTMLElement, options: CreatorPipeline
     if (dna.seed_review) {
       const review = dna.seed_review;
       const seedPanel = el('section', undefined, 'riff-seed');
+      seedPanel.setAttribute('aria-label', 'Lightreel review of supplied video');
       seedPanel.append(el('p', 'Supplied video review', 'riff-eyebrow'), el('h2', review.summary),
-        rows([['Provider', review.provider], ['Access basis', review.access_basis], ['Retrieved', formatRiffDate(review.retrieved_at)]]),
-        list('Video review limitations', review.limitations, 'riff-compact-list'));
+        el('p', 'This review concerns the supplied video only. Profile-wide Creator DNA is shown separately.', 'riff-muted'));
+      if (review.origin === 'fixture') seedPanel.append(el('p', 'Fictional test review. This is not live provider evidence.', 'riff-notice'));
+      seedPanel.append(el('p', seedVideoAccessMessage(review.access_basis), 'riff-notice'),
+        rows([['Provider', review.provider], ['Source', review.url], ['Retrieved', review.retrieved_at.replace('T', ' ').replace(/Z$/, ' UTC')]]),
+        list('Review limitations', review.limitations, 'riff-compact-list'));
       const href = review.origin === 'live' ? safeHttpUrl(review.url) : undefined;
-      if (href) { const link = el('a', 'Open supplied video', 'riff-link'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; seedPanel.append(link); }
+      if (href) { const link = el('a', 'Open supplied video', 'riff-link'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.referrerPolicy = 'no-referrer'; seedPanel.append(link); }
       content.append(seedPanel);
     }
     const dimensions: Array<[string, CreatorDnaView['claims'][number]['dimension'][]]> = [

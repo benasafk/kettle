@@ -101,6 +101,7 @@ test('project-review render tool uses signed identity, exact read contract and r
     [['riff-onboarding', RIFF_ONBOARDING_URI, RIFF_ONBOARDING_MIME],
       ['kettle-project-review', PROJECT_REVIEW_URI, PROJECT_REVIEW_MIME],
       ['riff-home', RIFF_HOME_URI, RIFF_HOME_MIME]]);
+  assert.equal(resources.result.resources.find((r) => r.uri === PROJECT_REVIEW_URI)!.title, 'Riff project brief');
   const read = await (await rpc('resources/read', { uri: PROJECT_REVIEW_URI }, auth)).json() as {
     result: { contents: { uri: string; mimeType: string; text: string; _meta: unknown }[] };
   };
@@ -110,6 +111,7 @@ test('project-review render tool uses signed identity, exact read contract and r
   assert.deepEqual((resource._meta as Record<string, unknown>)['openai/ui'], { availableDisplayModes: ['inline'] });
   assert.ok(!('availableDisplayModes' in PROJECT_REVIEW_META.ui));
   assert.match(resource.text, /<script>/);
+  assert.match(resource.text, /<title>Riff project brief<\/title>/);
   assert.match(resource.text, /ui\/initialize/);
   assert.match(resource.text, /Your project brief/);
   assert.ok(!resource.text.includes(token));

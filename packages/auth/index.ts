@@ -100,7 +100,7 @@ export function bearer(request: Request): string | null {
   return match?.[1] ?? null;
 }
 export function challenge(config: AuthConfig, error = 'invalid_token', scope?: string): string {
-  return `Bearer resource_metadata="${new URL('/.well-known/oauth-protected-resource', config.resource)}", error="${error}", error_description="Connect or reauthorize your Kettle account"${scope ? `, scope="${scope}"` : ''}`;
+  return `Bearer resource_metadata="${new URL('/.well-known/oauth-protected-resource', config.resource)}", error="${error}", error_description="Connect or reauthorize your Riff account"${scope ? `, scope="${scope}"` : ''}`;
 }
 export function protectedResource(config: AuthConfig) {
   return { resource: config.resource, authorization_servers: [config.issuer], scopes_supported: [...scopes], bearer_methods_supported: ['header'] };

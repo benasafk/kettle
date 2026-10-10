@@ -92,6 +92,7 @@ test('authenticated MCP lists scoped tools and returns OAuth challenges; injecte
   const denied = await (await rpc('tools/call', { name: 'save_project', arguments: createInput() })).json() as { result: { isError: boolean; _meta: Record<string, string[]> } };
   assert.equal(denied.result.isError, true);
   assert.match(denied.result._meta['mcp/www_authenticate']![0]!, /resource_metadata=.*invalid_token/);
+  assert.match(denied.result._meta['mcp/www_authenticate']![0]!, /Riff account/);
   const invalidHttp = await rpc('tools/list', {}, 'bad-token');
   assert.equal(invalidHttp.status, 401);
   assert.match(invalidHttp.headers.get('www-authenticate')!, /invalid_token/);

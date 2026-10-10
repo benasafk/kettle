@@ -20,8 +20,12 @@ test('Riff Home keeps creator input available and uses honest ChatGPT handoffs',
     assert.equal(await page.getByRole('heading', { name: /Let.s make your next video go viral/ }).count(), 1);
     const creatorInput = page.getByPlaceholder('Share a video or profile link, or tell me what you want to make…');
     assert.equal(await creatorInput.count(), 1);
-    assert.equal(await page.getByRole('button', { name: 'Upload a video' }).count(), 1);
-    assert.equal(await page.getByRole('button', { name: 'Find my next idea' }).count(), 1);
+    const creatorForm = page.getByRole('form', { name: 'Start with Riff' });
+    assert.equal(await creatorForm.getByRole('button', { name: 'Upload a video' }).count(), 1);
+    assert.equal(await creatorForm.getByRole('button', { name: 'Find my next idea' }).count(), 1);
+    for (const name of ['Trending videos', 'Hooks', 'Product showcases', 'Calls to action']) {
+      assert.equal(await creatorForm.getByRole('button', { name, exact: true }).count(), 1);
+    }
     assert.equal(await page.getByText('Pick up where you left off').count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Create a video' }).count(), 1);
     assert.equal(await page.locator('input[type="file"]').count(), 0);
@@ -31,7 +35,7 @@ test('Riff Home keeps creator input available and uses honest ChatGPT handoffs',
     await creatorInput.press('Control+Enter');
     assert.equal((await page.evaluate(() => window.prompts))[0], 'Use Riff to help me make my next video from this input:\n\n<img src=x onerror=alert(1)> https://tiktok.com/@creator/video/1');
     assert.equal(await page.locator('img[src="x"]').count(), 0);
-    await page.getByRole('button', { name: 'Upload a video' }).click();
+    await creatorForm.getByRole('button', { name: 'Upload a video' }).click();
     assert.match((await page.evaluate(() => window.prompts)).at(-1), /attach.*video.*ChatGPT/i);
     await page.close();
   }

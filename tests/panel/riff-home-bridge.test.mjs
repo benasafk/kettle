@@ -37,7 +37,7 @@ test('Riff Home bridge receives account state, host styles, messages, and teardo
   assert.equal(await frame.evaluate(() => document.documentElement.dataset.theme), 'dark');
   assert.equal(await frame.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--riff-safe-top')), '7px');
   assert.equal(await frame.locator('#__mcp-host-fonts').count(), 1);
-  await frame.getByRole('button', { name: 'Find my next idea' }).click();
+  await frame.getByRole('button', { name: 'Trending videos' }).click();
   await page.waitForFunction(() => window.messages.length === 1);
   assert.deepEqual(await page.evaluate(() => window.messages[0]._meta['openai/message']), { target: 'active', send: true });
   await page.evaluate(() => frame().postMessage({jsonrpc:'2.0',id:'teardown',method:'ui/resource-teardown',params:{}},'*'));
