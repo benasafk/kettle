@@ -379,7 +379,7 @@
 
   Re-read the live Paper file **Riff**, page **Riff · Core workflows**, then build the review package from `origin/main...HEAD`. Verify the Review Focus items, trust boundaries, exact current Paper copy/vector proportions/Riff-owned styles, correct omission of ChatGPT-owned chrome, and absence of false capability claims. Any Critical or Important finding must receive one RED→GREEN fix before rerunning `npm run check`.
 
-- [ ] **Step 6: Commit and push the current branch**
+- [x] **Step 6: Commit and push the current branch**
 
   ```bash
   git add apps/worker apps/panel apps/web packages/application packages/auth tests apps/panel/README.md README.md PRODUCT.md docs/superpowers/plans/2026-10-10-riff-mcp-app-ui.md
@@ -389,6 +389,10 @@
 
   Expected: the branch is present on GitHub and `git status --short` is clean. Do not claim the live development MCP changed unless a separately authorized deployment actually ran.
 
-- [ ] **Step 7: Hand off ChatGPT refresh and host verification**
+  Completed through `benasafk/kettle` because the authenticated GitHub account has read-only access to `gustasbull/kettle`; upstream pull request [#39](https://github.com/gustasbull/kettle/pull/39) carries the same branch without renaming it or changing the original `origin` remote.
+
+- [x] **Step 7: Hand off ChatGPT refresh and host verification**
 
   Report the pushed commit/branch and separate four statuses: local package validation, repository test suite, remote deployment, and ChatGPT cache refresh. If an authorized deployment occurred through an existing verified pipeline, use MCP Inspector against the public `/mcp` endpoint, refresh the connection in ChatGPT, install the repo-local Riff package, and test setup in both a fresh conversation and an existing conversation. Otherwise mark those host checks pending and give the owner the exact refresh sequence; a GitHub push by itself is not proof that the Worker changed.
+
+  Deployment was attempted with `wrangler deploy --env development` and stopped before upload because this environment has no Cloudflare authentication. A read-only check confirmed the existing public Worker is healthy but still serves the pre-Riff Kettle website/tool registry, so ChatGPT refresh remains pending until an owner deploys this commit.
