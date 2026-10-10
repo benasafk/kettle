@@ -170,6 +170,12 @@ test('Riff serves password-only sign-up, sign-in and recovery forms', async () =
   }
 });
 
+test('auth pages preserve same-origin provenance for browser form posts', async () => {
+  const response = await harness().call('/auth/sign-up');
+
+  assert.equal(response.headers.get('referrer-policy'), 'same-origin');
+});
+
 test('every auth cross-link preserves the validated return destination', async () => {
   const h = harness();
   const returnTo = '/oauth/consent?authorization_id=authorization-1';
