@@ -11,6 +11,16 @@ export function mountRiffHomeBridge(root: HTMLElement, options: { timeoutMs?: nu
   const extensions = new OpenAIExtensions(app);
   let connected = false;
   let disposed = false;
+  let onboardingMarkNeeded = false;
+  let onboardingMarkAttempted = false;
+  const markFirstOpen = () => {
+    if (!connected || disposed || !onboardingMarkNeeded || onboardingMarkAttempted) return;
+    onboardingMarkAttempted = true;
+    if (!app.getHostCapabilities()?.serverTools) return;
+    void app.callServerTool({ name: 'mark_riff_onboarding_seen', arguments: {} }, {
+      timeout: timeoutMs + 1_000, maxTotalTimeout: timeoutMs + 1_000,
+    }).catch(() => {});
+  };
   const action = async (prompt: string) => {
     if (!connected || !app.getHostCapabilities()?.message?.text) return {
       status: 'unsupported' as const,
@@ -28,7 +38,23 @@ export function mountRiffHomeBridge(root: HTMLElement, options: { timeoutMs?: nu
       return { status: 'failed' as const, message: 'The handoff failed. Continue in the ChatGPT composer.' };
     }
   };
-  const view = mountRiffHome(root, action);
+  const showWelcome = async () => {
+    if (!connected || !app.getHostCapabilities()?.serverTools) return {
+      status: 'unsupported' as const,
+      message: 'Ask ChatGPT to show the Riff welcome guide in this conversation.',
+    };
+    try {
+      const result = await app.callServerTool({ name: 'show_riff_welcome', arguments: {} }, {
+        timeout: timeoutMs + 1_000, maxTotalTimeout: timeoutMs + 1_000,
+      });
+      return result.isError
+        ? { status: 'failed' as const, message: 'Riff could not open the welcome guide. Continue in the ChatGPT composer.' }
+        : { status: 'sent' as const, message: 'Welcome opened in ChatGPT.' };
+    } catch {
+      return { status: 'failed' as const, message: 'Riff could not open the welcome guide. Continue in the ChatGPT composer.' };
+    }
+  };
+  const view = mountRiffHome(root, action, showWelcome);
   view.render({ status: 'loading' });
   const applyContext = (context: McpUiHostContext | undefined) => {
     if (context?.theme) applyDocumentTheme(context.theme);
@@ -49,7 +75,12 @@ export function mountRiffHomeBridge(root: HTMLElement, options: { timeoutMs?: nu
     app.ontoolresult = undefined; app.ontoolcancelled = undefined; app.onhostcontextchanged = undefined;
     void app.close();
   }
-  app.ontoolresult = (params) => view.render(riffHomeStructuredOutput(params.structuredContent));
+  app.ontoolresult = (params) => {
+    const state = riffHomeStructuredOutput(params.structuredContent);
+    view.render(state);
+    onboardingMarkNeeded = state.status === 'ready' && state.account.onboarding_seen_at === null;
+    markFirstOpen();
+  };
   app.ontoolcancelled = () => view.render({ status: 'error', message: 'Riff Home was cancelled. Reopen it from ChatGPT.' });
   app.onhostcontextchanged = applyContext;
   app.onteardown = async () => { setTimeout(dispose, 0); return {}; };
@@ -64,6 +95,7 @@ export function mountRiffHomeBridge(root: HTMLElement, options: { timeoutMs?: nu
     }).then(() => {
       if (disposed) return;
       connected = true; clearTimeout(timer); applyContext(app.getHostContext());
+      markFirstOpen();
     }).catch(() => { if (!disposed) view.render({ status: 'error', message: 'Riff Home could not connect. Reopen it from ChatGPT.' }); });
   }
   return { dispose };

@@ -1,6 +1,6 @@
 # Riff Supabase Auth and OAuth Cutover Design
 
-- Status: review requested
+- Status: implemented locally; constrained hosted preview acceptance pending
 - Date: 11 October 2026
 - Product: Riff
 - Runtime: Cloudflare Workers + Workflows
@@ -64,8 +64,8 @@ Three approaches were considered:
    refresh-token rotation, registration, grants, and OAuth security. Rejected.
 3. **Use Supabase Auth and its OAuth 2.1 server, with Riff hosting login and
    consent.** This keeps identity and token issuance in Supabase while preserving
-   the Cloudflare runtime. Chosen, subject to the resource-indicator acceptance
-   gate below.
+   the Cloudflare runtime. Chosen with the explicit single-resource audience
+   boundary below.
 
 A password grant is not a substitute for OAuth. The browser may show a simple
 Riff email/password form, but ChatGPT must use authorization code with S256 PKCE
@@ -143,7 +143,7 @@ confirmation or application rate limits.
 2. ChatGPT reads Riff protected-resource metadata and the Supabase authorization
    server metadata, then dynamically registers a client.
 3. On the first protected action, ChatGPT starts authorization code with S256
-   PKCE and the canonical Riff resource indicator.
+   PKCE for the single-purpose Riff Supabase project.
 4. Supabase validates the request and sends the browser to the Riff consent page
    with an opaque `authorization_id`.
 5. If no website session exists, Riff sends the user through signup or sign-in
@@ -244,12 +244,13 @@ authorization-server metadata for the pathful issuer is at
 cover both exact URLs.
 
 Dynamic client registration is the intended ChatGPT flow because it requires no
-client ID or secret to be pasted into ChatGPT. Supabase does not currently
-advertise RFC 9207 authorization-response issuer identification, so ChatGPT uses
-a per-connection redirect shaped as
-`https://chatgpt.com/connector/oauth/{callback_id}` rather than the stable
-platform callback. The callback ID is dynamic and cannot be placed in a static
-allowlist before registration.
+client ID or secret to be pasted into ChatGPT. The hosted Supabase baseline does
+not currently advertise RFC 9207 authorization-response issuer identification,
+so the expected redirect is the per-connection
+`https://chatgpt.com/connector/oauth/{callback_id}` form. OpenAI also documents
+`https://chatgpt.com/connector_platform_oauth_redirect` for issuer-identified
+servers. Riff accepts those two exact forms so a metadata/callback-mode change
+does not strand an otherwise valid connection; it accepts no other ChatGPT path.
 
 DCR is not an identity guarantee: any software can register a client, and client
 names and metadata are untrusted. The Riff consent handler therefore:
@@ -258,17 +259,17 @@ names and metadata are untrusted. The Riff consent handler therefore:
 - requires the current request's redirect URI to exactly equal a redirect URI
   stored on that Supabase DCR client;
 - accepts only a normalized HTTPS URL on the exact `chatgpt.com` origin whose
-  path is `/connector/oauth/` plus one non-empty, bounded, URL-safe callback-ID
-  segment, with no credentials, port, query, fragment, or extra path segment;
+  path is either `/connector/oauth/` plus one non-empty, bounded, URL-safe
+  callback-ID segment or exactly `/connector_platform_oauth_redirect`, with no
+  credentials, port, query, fragment, or extra path segment;
 - denies unknown redirect destinations rather than presenting an Allow button;
 - HTML-escapes all client metadata and never fetches a client-supplied logo or
   URL; and
 - always requires interactive consent for a new grant.
 
-If Supabase later implements RFC 9207 correctly, adopting ChatGPT's stable
-`https://chatgpt.com/connector_platform_oauth_redirect` requires a separately
-tested policy change. The current release does not accept arbitrary
-`chatgpt.com` paths.
+The current release does not accept arbitrary `chatgpt.com` paths, and the
+provider redirect returned after approval or denial must have the same exact
+base callback as the authorization details shown before consent.
 
 The checked-in `plugins/riff/mcp.json` uses the documented OpenAI auth extension
 fields under `extensions["com.openai"].auth`:
@@ -292,14 +293,22 @@ and exact scope set.
 
 ### Access-token hook
 
-An additive migration installs a Supabase Custom Access Token Hook. For an OAuth
-authorization-code token whose trusted claims contain a persisted `client_id`,
-the hook adds only the private Riff permission set. It never creates, replaces,
-or normalizes `aud` or a resource claim, because the hook event does not contain
-the requested RFC 8707 resource and therefore cannot bind an audience safely.
-For refresh issuance, it detects the persisted `client_id` in the claims rather
-than relying only on the authentication-method value, which is different during
+An additive migration installs a Supabase Custom Access Token Hook. Current
+Supabase OAuth access tokens use the native `authenticated` audience and the
+OAuth server does not provide RFC 8707 resource-indicator binding. This project
+has exactly one OAuth resource, the canonical Riff MCP. For a token whose trusted
+claims contain a persisted OAuth `client_id`, the hook therefore replaces `aud`
+with that one canonical MCP URL and adds the private Riff permission set. For
+refresh issuance, it detects the persisted `client_id` in the claims rather than
+relying only on the authentication-method value, which is different during
 refresh.
+
+This is a preview compatibility workaround, not RFC 8707 resource binding and
+not proof of OpenAI protocol compliance. Supabase does not carry the requested
+`resource` through this flow, so the hook cannot distinguish an omitted, wrong,
+or mismatched resource request. Public release remains blocked unless this
+limitation is removed upstream or replaced by a standards-compliant
+authorization layer.
 
 The hook must preserve all Supabase-required claims. Its SQL function uses a
 fixed empty `search_path`, revokes execution from `public`, `anon`, and
@@ -308,42 +317,25 @@ fixed empty `search_path`, revokes execution from `public`, `anon`, and
 have no OAuth client binding, retain the normal Supabase audience, receive no
 Riff permission claim, and cannot be used as MCP credentials.
 
-### Resource-indicator compatibility gate
+### Single-resource compatibility boundary
 
-This is a release blocker, not an assumption.
+Supabase's current OAuth server does not implement RFC 8707 resource indicators;
+its native OAuth access-token audience is `authenticated`. Riff does not weaken
+the MCP verifier to accept that generic audience. Instead, this dedicated
+preview project has one intended OAuth resource and the trusted token hook
+stamps every `client_id`-bearing OAuth token with the exact canonical Riff MCP
+audience. This does not prove which resource the client requested. The
+consent handler independently permits only the strict ChatGPT callback shape,
+and the Worker still requires the exact issuer, audience, OAuth client binding,
+role, lifetime, and private permission claim before resolving an account.
 
-OpenAI's MCP authorization contract requires the RFC 8707 `resource` value to be
-sent through both authorization and token exchange and to bind the access token
-to the MCP resource. The reviewed Supabase authorization code accepts and stores
-a resource parameter. Although a token hook can mechanically rewrite claims, it
-cannot do so safely here because its event does not expose the requested
-resource. The current hosted behavior has not demonstrated that the token
-exchange itself validates and propagates the exact requested resource. A
-dedicated project or pre-registered client does not repair that missing protocol
-binding.
-
-Before the canonical MCP is cut over, a temporary Cloudflare canary and the
-hosted Supabase project must prove all of the following with sanitized protocol
-traces:
-
-- the correct resource appears at authorization and token exchange;
-- omission of the resource at either step is rejected;
-- a wrong resource at either step is rejected;
-- a token request whose resource differs from the authorization request is
-  rejected;
-- the resulting access token has the exact canonical canary MCP audience; and
-- refresh retains the exact audience, OAuth client binding, and Riff permission
-  claim.
-
-The resource tests first run with the custom hook disabled to inspect native
-Supabase issuance. Only after that passes is the permissions-only hook enabled
-and the same suite repeated; the audience must be unchanged. A hook that stamps
-the Riff audience regardless of the requested resource is forbidden and cannot
-be used to make the gate pass. If native hosted Supabase does not pass every
-case, the cutover stops. Riff will not fall back to Auth0, a manually registered
-client, or weaker audience checks. The owner must then choose a separate
-standards-compliant authorization facade backed by Supabase identity, or wait
-for provider support; either choice requires a new design.
+This is intentionally a constrained single-resource preview. A second API or a
+non-ChatGPT
+OAuth client cannot be added to the same Supabase OAuth server by configuration
+alone; it requires a new reviewed token-routing design. Hosted acceptance must
+prove that authorization-code and refreshed tokens both carry the canonical
+audience, `client_id`, and Riff permissions, while ordinary website tokens keep
+the native `authenticated` audience and are rejected by MCP.
 
 ### Worker validation
 
@@ -374,7 +366,8 @@ accepted by the MCP verifier.
 
 Supabase refresh-token rotation remains enabled. A successful refresh must
 preserve `iss`, exact MCP `aud`, `client_id`, and `riff_permissions`; replay of a
-rotated-out refresh token must fail. Reconnecting the same Supabase subject must
+rotated-out refresh token after the configured reuse interval must fail.
+Reconnecting the same Supabase subject must
 resolve the same internal account and saved work.
 
 Riff's account page includes a control to revoke the ChatGPT OAuth grant through
@@ -521,26 +514,26 @@ No wildcard credentialed CORS policy is introduced.
 
 ## Supabase control-plane changes
 
-Hosted settings change only after code and tests for the canary login and consent
-surface are ready:
+Hosted settings change only after code and tests for the development login and
+consent surface are ready:
 
 1. Confirm password sign-in and email confirmation are enabled.
-2. Configure exact canary and canonical Riff website callback/recovery URLs.
+2. Configure the exact Riff website callback/recovery URL.
    Remove broad wildcard redirects.
 3. Confirm delivery of confirmation and recovery email; configure production
    SMTP before inviting anyone beyond the two-person preview.
 4. Confirm the active asymmetric signing key and JWKS.
-5. Apply the additive migration but leave the custom access-token hook disabled
-   for the first native resource-binding probe.
-6. Enable Supabase OAuth 2.1 Server against the canary authorization path.
+5. Apply the additive migration and inspect the installed hook grants before
+   enabling it.
+6. Enable Supabase OAuth 2.1 Server against the Riff authorization path.
 7. Enable dynamic client registration.
 8. Verify discovery advertises authorization code, refresh token, S256, the
    registration endpoint, supported standard scopes, and compatible token
    endpoint authentication methods.
-9. Pass the resource-indicator suite once with the hook disabled, enable the
-   permissions-only hook, and pass it again while proving the native audience is
-   unchanged.
-10. Only then move the authorization path and canonical MCP to the new flow.
+9. Enable the access-token hook and prove authorization-code and refresh tokens
+   receive the canonical MCP audience and Riff permissions, while password
+   sessions retain `authenticated` and no Riff permissions.
+10. Only then expose the canonical MCP through the new flow.
 
 Sanitized settings and endpoint metadata may be recorded. Passwords, access
 tokens, refresh tokens, authorization codes, service-role keys, cookie secrets,
@@ -548,34 +541,31 @@ and client secrets may not be recorded.
 
 ## Delivery sequence
 
-The resource question is tested before investing in the complete UI cutover:
+The cutover is delivered through the existing development Worker:
 
 1. Capture the pre-change database and backup evidence.
 2. Add the protocol probes and fixtures for pathful Supabase discovery, DCR,
    PKCE, exact scopes, resource binding, token claims, refresh, and rejection
    cases.
-3. Implement only the secure canary surface needed to authenticate, inspect a
-   Supabase authorization interaction, and allow or deny it. Add the candidate
-   verifier and token hook.
+3. Implement the secure surface needed to authenticate, inspect a Supabase
+   authorization interaction, and allow or deny it. Add the verifier and token
+   hook.
 4. Add the integration-lead-owned append-only migration; never edit applied
    history and never reset the hosted database.
-5. Deploy the temporary Cloudflare canary while the existing canonical Auth0
-   Worker and its secrets remain intact. Enable Supabase OAuth for the canary,
-   execute every resource-indicator positive and negative test with the hook
-   disabled, then enable the permissions-only hook and repeat the suite.
-6. If the protocol gate fails, disable the canary OAuth entry point and stop.
-   The additive schema remains harmless and the canonical service is unchanged.
-7. Only if the gate passes, implement the complete Riff signup, confirmation,
-   sign-in, recovery, consent, account, grant-revocation, onboarding, and
-   website-session experience.
+5. Deploy the tested Worker, enable Supabase OAuth and DCR, enable the token hook,
+   then exercise authorization code, refresh, password-session separation, and
+   exact MCP audience checks.
+6. If hosted OAuth discovery or token issuance fails, keep product operations
+   protected and repair the auth configuration before inviting another user.
+7. Implement the complete Riff signup, confirmation, sign-in, recovery, consent,
+   account, grant-revocation, onboarding, and website-session experience.
 8. Correct MCP CORS, titles, security schemes, challenges, schema-safe errors,
    and the explicit plugin auth configuration.
 9. Run the complete repository check, local Worker dry run, and a real ChatGPT
-   canary install covering the password lifecycle, consent, protected tools,
+   development install covering the password lifecycle, consent, protected tools,
    refresh, revoke, reconnect, and account isolation.
-10. Cut the canonical Worker and plugin configuration to Supabase, repeat hosted
-    acceptance, and capture the post-change database report.
-11. Only after canonical acceptance, remove Auth0 code, Cloudflare secrets, and
+10. Repeat hosted acceptance and capture the post-change database report.
+11. Only after acceptance, remove Auth0 code, Cloudflare secrets, and
     active setup documentation. Record the Auth0 decision as superseded.
 
 ## Verification
@@ -594,8 +584,8 @@ The implementation must cover at least:
 - separation of standard OAuth scopes from internal permissions in metadata,
   tool descriptors, challenges, and operation checks;
 - access-token hook behavior during authorization-code issuance and refresh,
-  including required-claim and native-audience preservation, permission
-  addition, and ordinary website tokens;
+  including canonical audience binding, permission addition, and unchanged
+  ordinary website tokens;
 - first-login account provisioning under concurrency;
 - `/account` and `get_account_state` resolving the same internal account;
 - rejection of account IDs or emails injected through tool or form input;
@@ -622,20 +612,19 @@ The implementation must cover at least:
 
 ### Hosted protocol gate
 
-The canary must demonstrate:
+The development deployment must demonstrate:
 
 1. Supabase OAuth metadata returns 200 and advertises DCR and S256.
 2. ChatGPT registration succeeds without manually entered client credentials.
-3. The observed authorization and token requests use the exact expected resource
-   and the scope set `{openid, offline_access}`, matching the plugin
-   configuration.
-4. Every missing, wrong, and mismatched resource case fails.
-5. The access token has exact issuer, MCP audience, OAuth client ID, and Riff
+3. The observed authorization flow uses the scope set `{openid,
+   offline_access}`, matching the plugin configuration.
+4. A normal `aud: authenticated` website token fails at the MCP boundary.
+5. The OAuth access token has exact issuer, MCP audience, OAuth client ID, and Riff
    permissions.
-6. A hook-disabled token proves Supabase created the resource-bound audience; a
-   hook-enabled token proves the permission hook leaves that audience unchanged.
-7. Refresh preserves those properties, rotated-token replay fails, and grant
-   revocation prevents further refresh.
+6. A password token retains the native audience and has no Riff permissions.
+7. Refresh preserves the OAuth-token properties, rotated-token replay after the
+   configured reuse interval fails, and grant revocation prevents further
+   refresh.
 
 Failure of any item stops the cutover.
 
@@ -670,10 +659,11 @@ are observed on the canonical services:
 
 ## Rollout and rollback
 
-The canary keeps the canonical Auth0 deployment and its Cloudflare secrets intact
-until Supabase passes the protocol and end-to-end acceptance checks. Failure at
-that stage means disabling the canary OAuth entry point and repairing Supabase;
-the canonical service is unchanged.
+The development deployment keeps the old Auth0 Cloudflare secrets until
+Supabase passes protocol and end-to-end acceptance. Failure at that stage means
+disabling the Supabase OAuth entry point or rolling the Worker forward to the
+last known working version while repairing configuration; database changes are
+additive and remain intact.
 
 After canonical Supabase acceptance, Auth0 code and secrets are deliberately
 removed. At that point an old Cloudflare deployment is not a one-click rollback,

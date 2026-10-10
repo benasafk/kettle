@@ -29,8 +29,15 @@ test('Riff is a portable, mixed-auth Agent Plugins package with complete assets'
   assert.deepEqual(mcp.mcpServers.riff, {
     type: 'streamable-http',
     url: 'https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp',
-    extensions: { 'com.openai': { auth: { type: 'mixed' } } },
+    extensions: { 'com.openai': { auth: {
+      type: 'mixed',
+      client: { mode: 'dcr' },
+      resource: 'https://kettle-stage2-development.g-baltramiejunas.workers.dev/mcp',
+      baseScopes: ['openid', 'offline_access'],
+      defaultScopes: [],
+    } } },
   });
+  assert.equal(mcp.mcpServers.riff.extensions['com.openai'].auth.resource, mcp.mcpServers.riff.url);
   const packageText = `${JSON.stringify(manifest)}\n${JSON.stringify(mcp)}`;
   assert.doesNotMatch(packageText, /clientSecret|service.role|api[_-]?key|bearer\s+[a-z0-9]/i);
 

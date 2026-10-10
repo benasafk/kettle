@@ -33,10 +33,10 @@ try {
   assert.deepEqual(await creatorTransport.json(),{status:'passed',fixture:true});
   await client.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`)));
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((tool) => tool.name), ['kettle_diagnostic', 'show_riff_welcome']);
+  assert.deepEqual(tools.map((tool) => tool.name), ['kettle_diagnostic']);
   const result = await client.callTool({ name: 'kettle_diagnostic', arguments: {} });
   assert.deepEqual(result.structuredContent, { status: 'ok', contract_version: '1.0.0' });
-  for (const name of ['save_project', 'get_project', 'get_account_state']) {
+  for (const name of ['show_riff_welcome', 'save_project', 'get_project', 'get_account_state']) {
     const denied = await client.callTool({ name, arguments: {} });
     assert.equal(denied.isError, true, `${name} must not be exposed`);
   }
@@ -56,7 +56,7 @@ try {
     await delay(250);
   }
   assert.ok(completed, 'Local workflow must complete within 15 seconds');
-  console.log('PASS: workerd health + Riff website, public onboarding, MCP initialize/list/call, account tools unavailable, origin rejection, local Workflow completion; fixture JWT/PKCE/encrypted-cookie roundtrip in workerd.');
+  console.log('PASS: workerd health + Riff website, diagnostic-only anonymous MCP initialize/list/call, protected tools unavailable, origin rejection, local Workflow completion; fixture JWT/PKCE/encrypted-cookie roundtrip in workerd.');
 } finally {
   await client.close();
   await worker.stop();

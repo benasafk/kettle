@@ -7,8 +7,8 @@ description: Set up or reconnect Riff and guide first use after installation. Us
 
 Use this workflow for installation, setup, connection, or first use. If the user made a more specific Riff request, prioritize that request and use only the setup steps that help complete it.
 
-1. Call `show_riff_welcome` once. It renders the inline Start → Find → Make introduction and does not require an account.
-2. Call `open_riff` once. Its OAuth challenge may start account connection; after authorization it opens Riff Home in the supported fullscreen panel.
+1. Call `show_riff_welcome` once. It renders the inline Start → Find → Make introduction and reads no account data. If Riff is not connected yet, its OAuth challenge starts account connection.
+2. After authorization, call `open_riff` once. It opens Riff Home in the supported fullscreen panel.
 3. Briefly explain the supported path: start with creator context, find an evidence-backed direction, then make a filmable version.
 4. Offer one next action: paste a creator profile or public video link, describe an idea, or attach a video through the ChatGPT composer.
 

@@ -4,7 +4,7 @@ import type { RiffPanelAction } from '../riff-ui/dom.ts';
 
 export type RiffHomeState =
   | { status: 'loading' }
-  | { status: 'ready'; account: { id: string; name: string } }
+  | { status: 'ready'; account: { id: string; name: string; onboarding_seen_at?: string | null } }
   | { status: 'error'; message: string };
 
 export function riffHomeStructuredOutput(value: unknown): RiffHomeState {
@@ -18,11 +18,16 @@ export function riffHomeStructuredOutput(value: unknown): RiffHomeState {
   }
   const account = (result.data as { account?: unknown }).account;
   if (!account || typeof account !== 'object') return { status: 'error', message: 'Riff returned incomplete account details. Reopen Home.' };
-  const { id, display_name: name } = account as { id?: unknown; display_name?: unknown };
+  const { id, display_name: name, onboarding_seen_at: rawOnboardingSeenAt } = account as {
+    id?: unknown; display_name?: unknown; onboarding_seen_at?: unknown;
+  };
   if (typeof id !== 'string' || typeof name !== 'string' || !name.trim()) {
     return { status: 'error', message: 'Riff returned incomplete account details. Reopen Home.' };
   }
-  return { status: 'ready', account: { id, name: name.trim() } };
+  const onboardingSeenAt = rawOnboardingSeenAt === null ? null
+    : typeof rawOnboardingSeenAt === 'string' && !Number.isNaN(Date.parse(rawOnboardingSeenAt))
+      ? rawOnboardingSeenAt : undefined;
+  return { status: 'ready', account: { id, name: name.trim(), onboarding_seen_at: onboardingSeenAt } };
 }
 
 const homeStyles = `
@@ -43,10 +48,17 @@ body { min-height: 100vh; }
 .riff-home__composer textarea { display: block; width: 100%; min-height: 72px; resize: vertical; padding: 18px; border: 0; outline: 0; color: var(--riff-ink); background: transparent; }
 .riff-home__composer textarea::placeholder { color: var(--riff-muted); opacity: 1; }
 .riff-home__composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 18px 14px; }
-.riff-home__upload, .riff-home__send, .riff-home__action, .riff-home__library { border: 1px solid var(--riff-line); color: var(--riff-ink); background: var(--riff-surface); cursor: pointer; }
+.riff-home__upload, .riff-home__send, .riff-home__action, .riff-home__library, .riff-home__welcome-action { border: 1px solid var(--riff-line); color: var(--riff-ink); background: var(--riff-surface); cursor: pointer; }
+.riff-home__welcome-action { min-height: 32px; padding: 6px 12px; border-radius: var(--riff-radius-control); color: #425779; font-size: 12px; }
 .riff-home__upload { min-height: 40px; padding: 8px 0; border: 0; color: var(--riff-muted); }
 .riff-home__send { min-height: 40px; padding: 8px 22px; border: 0; border-radius: var(--riff-radius-control); color: #fff; background: var(--riff-primary); font-size: 14px; font-weight: 650; box-shadow: 0 6px 12px rgba(56,101,248,.25); }
 .riff-home__status { width: min(100%, 760px); min-height: 24px; margin: 10px auto 0 !important; color: var(--riff-muted); font-size: 13px; }
+.riff-home__welcome { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; width: min(100%, 760px); margin: 0 auto 16px; padding: 18px 20px; border: 1px solid #DDE5F4; border-radius: var(--riff-radius-surface); background: #EFF4FF; }
+.riff-home__welcome[hidden] { display: none; }
+.riff-home__welcome-eyebrow { color: var(--riff-primary); font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.riff-home__welcome h2 { margin-top: 3px; font-size: 20px; letter-spacing: -.025em; }
+.riff-home__welcome p:last-child { margin-top: 4px; color: var(--riff-muted); font-size: 13px; }
+.riff-home__welcome-mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: #fff; background: var(--riff-primary); font-weight: 750; }
 .riff-home__section { width: min(100%, 760px); margin: 0 auto; padding-top: 28px; }
 .riff-home__section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .riff-home__section h2 { font-size: 20px; letter-spacing: -.025em; }
@@ -68,6 +80,8 @@ body { min-height: 100vh; }
   .riff-home__shortcuts { justify-content: flex-start; }
   .riff-home__composer-footer { align-items: stretch; flex-direction: column; }
   .riff-home__upload, .riff-home__send { width: 100%; }
+  .riff-home__welcome { grid-template-columns: 1fr; }
+  .riff-home__welcome-mark { display: none; }
   .riff-home__recent { grid-template-columns: 1fr; }
 }
 `;
@@ -79,7 +93,8 @@ const libraries = [
   ['ctas', 'Calls to action', 'closing ideas'],
 ] as const;
 
-export function mountRiffHome(root: HTMLElement, send: RiffPanelAction): {
+export function mountRiffHome(root: HTMLElement, send: RiffPanelAction,
+  showWelcome?: () => ReturnType<RiffPanelAction>): {
   render(state: RiffHomeState): void;
   dispose(): void;
 } {
@@ -95,11 +110,19 @@ export function mountRiffHome(root: HTMLElement, send: RiffPanelAction): {
   const header = node('header', undefined, 'riff-home__header');
   const brand = node('div', undefined, 'riff-home__brand'); brand.append(riffLockup(doc));
   const account = node('p', 'Connecting…', 'riff-home__account');
-  header.append(brand, account);
+  const welcomeAction = node('button', 'Show welcome', 'riff-home__welcome-action'); welcomeAction.type = 'button';
+  header.append(brand, account, welcomeAction);
   const hero = node('section', undefined, 'riff-home__hero');
   const heading = node('h1', 'Let’s make your next video go viral.');
   const intro = node('p', 'Start with a creator, a video, or a rough idea. Riff keeps the evidence and the making flow together.', 'riff-home__intro');
   hero.append(heading, intro);
+  const welcome = node('section', undefined, 'riff-home__welcome'); welcome.hidden = true;
+  welcome.setAttribute('aria-label', 'Welcome to Riff');
+  const welcomeCopy = node('div');
+  welcomeCopy.append(node('p', 'Welcome to Riff', 'riff-home__welcome-eyebrow'),
+    node('h2', 'Start with what you have.'),
+    node('p', 'Share a creator or video, find a focused direction, then shape it into something ready to film.'));
+  welcome.append(welcomeCopy, node('span', 'R', 'riff-home__welcome-mark'));
   const form = node('form', undefined, 'riff-home__composer');
   form.setAttribute('aria-label', 'Start with Riff');
   const shortcuts = node('div', undefined, 'riff-home__shortcuts');
@@ -121,13 +144,28 @@ export function mountRiffHome(root: HTMLElement, send: RiffPanelAction): {
   footer.append(upload, uploadHelp, submit); inputShell.append(input, footer); form.append(shortcuts, inputShell);
   const status = node('p', '', 'riff-home__status');
   status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+  const disableControls = (disabled: boolean) => {
+    for (const control of app.querySelectorAll<HTMLButtonElement>('button')) control.disabled = disabled;
+  };
   const invoke = async (prompt: string) => {
     status.textContent = 'Sending to ChatGPT…';
-    for (const control of app.querySelectorAll<HTMLButtonElement>('button')) control.disabled = true;
+    disableControls(true);
     try { const result = await send(prompt); status.textContent = result.message; }
     catch { status.textContent = 'Riff could not hand this off. Continue in the ChatGPT composer.'; }
-    finally { for (const control of app.querySelectorAll<HTMLButtonElement>('button')) control.disabled = false; }
+    finally { disableControls(false); }
   };
+  welcomeAction.addEventListener('click', () => {
+    void (async () => {
+      status.textContent = 'Opening the Riff welcome…'; disableControls(true);
+      try {
+        const result = showWelcome ? await showWelcome() : {
+          status: 'unsupported' as const, message: 'Ask ChatGPT to show the Riff welcome guide.',
+        };
+        status.textContent = result.message;
+      } catch { status.textContent = 'Riff could not open the welcome guide. Continue in the ChatGPT composer.'; }
+      finally { disableControls(false); }
+    })();
+  });
   form.addEventListener('submit', (event) => {
     event.preventDefault(); const value = input.value.trim();
     if (!value) { status.textContent = 'Add a creator link, video link, or idea first.'; input.focus(); return; }
@@ -147,14 +185,16 @@ export function mountRiffHome(root: HTMLElement, send: RiffPanelAction): {
   const create = node('button', 'Create a video', 'riff-home__action riff-home__action--primary'); create.type = 'button';
   create.addEventListener('click', () => void invoke('Use Riff to create my next video. Start by asking for a creator profile or video link, my goal, and any product or filming constraints that are still missing.'));
   recent.append(empty, create); recentSection.append(recentHead, recent);
-  shell.append(header, hero, form, status, recentSection); app.append(shell); root.replaceChildren(style, app);
+  shell.append(header, hero, welcome, form, status, recentSection); app.append(shell); root.replaceChildren(style, app);
   let disposed = false;
   return {
     render(state) {
       if (disposed) return;
+      welcome.hidden = true;
       if (state.status === 'loading') { account.textContent = 'Connecting…'; return; }
       if (state.status === 'error') { account.textContent = 'Account unavailable'; status.textContent = state.message; return; }
       account.textContent = `Ready, ${state.account.name}`;
+      welcome.hidden = state.account.onboarding_seen_at !== null;
       if (/Reconnect|incomplete|could not/i.test(status.textContent)) status.textContent = '';
     },
     dispose() { disposed = true; root.replaceChildren(); },

@@ -40,3 +40,42 @@ test('Riff Home keeps creator input available and uses honest ChatGPT handoffs',
     await page.close();
   }
 });
+
+test('Riff Home distinguishes first run, returning accounts, and unavailable onboarding state', async (t) => {
+  const bundle = await build({ stdin: { resolveDir: process.cwd(), loader: 'ts', contents: `
+    import { mountRiffHome, riffHomeStructuredOutput } from './apps/panel/riff-home/index.ts';
+    window.welcomeCalls=0;
+    window.view=mountRiffHome(document.getElementById('root'), async () => ({status:'sent',message:'Sent.'}), async () => {
+      window.welcomeCalls++; return {status:'sent',message:'Welcome opened.'};
+    });
+    window.renderAccount=(marker,include=true)=>window.view.render(riffHomeStructuredOutput({ok:true,data:{account:{
+      id:'00000000-0000-4000-8000-000000000001',display_name:'Fictional Creator',
+      ...(include?{onboarding_seen_at:marker}:{})
+    }}}));
+    window.renderError=()=>window.view.render(riffHomeStructuredOutput({ok:false,error:{code:'UNAVAILABLE'}}));
+  ` }, bundle: true, platform: 'browser', format: 'iife', write: false });
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  await page.setContent(`<div id="root"></div><script>${bundle.outputFiles[0].text}</script>`);
+  const creatorInput = page.getByPlaceholder('Share a video or profile link, or tell me what you want to make…');
+
+  await page.evaluate(() => window.renderAccount(null));
+  assert.equal(await page.getByRole('region', { name: 'Welcome to Riff' }).count(), 1);
+  assert.equal(await creatorInput.count(), 1);
+  await page.getByRole('button', { name: 'Show welcome' }).click();
+  assert.equal(await page.evaluate(() => window.welcomeCalls), 1);
+
+  await page.evaluate(() => window.renderAccount('2026-10-11T12:00:00Z'));
+  assert.equal(await page.getByRole('region', { name: 'Welcome to Riff' }).count(), 0);
+  assert.equal(await creatorInput.count(), 1);
+
+  await page.evaluate(() => window.renderAccount(undefined, false));
+  assert.equal(await page.getByRole('region', { name: 'Welcome to Riff' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Show welcome' }).count(), 1);
+  assert.equal(await creatorInput.count(), 1);
+
+  await page.evaluate(() => window.renderError());
+  assert.equal(await page.getByRole('button', { name: 'Show welcome' }).count(), 1);
+  assert.equal(await creatorInput.count(), 1);
+});
